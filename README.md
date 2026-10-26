@@ -29,6 +29,9 @@ The visual design is implemented according to the Master Design Mockups:
 - 📱 **Full Mobile Responsiveness & Bottom Navigation**: Pixel-perfect layout for phones, tablets, and desktops, including a fixed mobile navigation bar (Home, Shop, Cart, Wishlist, Account) with real-time badge counters.
 - 🖼️ **Profile Picture Upload**: Interactive avatar file uploader with live preview, base64 payload serialization, instant synchronization to Redux and MongoDB Atlas (`PATCH /api/v1/auth/profile`), and header avatar display.
 - ⚡ **Interactive Quick View Modal**: Quick-preview modal directly on product cards allowing instant photo inspection, Birr price calculation, live stock indicators, and quantity-controlled cart addition without page reload.
+- 🔍 **Live Instant Search Autocomplete**: Real-time search dropdown in the storefront navigation header with live photo thumbnails, bilingual English/Amharic product titles, and instant ETB pricing.
+- 🧾 **Ethiopian Electronic Tax Invoice & Receipt**: Printable, audit-compliant electronic VAT receipt modal on customer orders featuring official Addis Ababa merchant details, TIN (`0048192014`) & VAT registration numbers, itemized ETB breakdowns, and 1-click PDF printing.
+- 📊 **Admin Order Logistics CSV Export**: One-click administrative order data export to spreadsheet-ready CSV for warehouse dispatch, bookkeeping, and reconciliation.
 
 ---
 

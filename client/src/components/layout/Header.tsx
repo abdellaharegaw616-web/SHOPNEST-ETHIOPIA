@@ -15,6 +15,8 @@ import { LanguageSelector } from '../common/LanguageSelector';
 import { ThemeToggle } from '../common/ThemeToggle';
 import { BRAND } from '@shopnest/shared';
 import { useAppSelector } from '../../store/hooks';
+import { useGetProductsQuery } from '../../store/api/productsApi';
+import { formatETB } from '../common/ProductPrice';
 
 export const Header: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -23,8 +25,16 @@ export const Header: React.FC = () => {
   const location = useLocation();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+
+  // Live search query
+  const { data: liveSearchResults, isFetching: isSearching } = useGetProductsQuery(
+    { search: searchQuery.trim(), limit: 5 },
+    { skip: searchQuery.trim().length < 2 }
+  );
+  const searchSuggestions = liveSearchResults?.data?.products || [];
 
   // Redux state
   const cartItems = useAppSelector((state) => state.cart.items);
@@ -95,12 +105,14 @@ export const Header: React.FC = () => {
             </div>
 
             {/* Center: Search Bar (Desktop & Tablet) */}
-            <div className="hidden md:flex flex-1 max-w-2xl mx-4">
+            <div className="hidden md:flex flex-1 max-w-2xl mx-4 relative">
               <form onSubmit={handleSearchSubmit} className="relative w-full">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setSearchFocused(false), 250)}
                   placeholder={t('nav.searchPlaceholder')}
                   className="w-full pl-5 pr-14 py-2.5 rounded-full bg-white dark:bg-gray-900 border border-[#D1D5DB] dark:border-gray-700 text-sm text-[#1F2937] dark:text-gray-100 placeholder-[#9CA3AF] focus:outline-hidden focus:border-[#F97316] focus:ring-2 focus:ring-[#F97316]/20 transition-all shadow-2xs"
                 />
@@ -112,6 +124,63 @@ export const Header: React.FC = () => {
                   <Search className="w-4 h-4 stroke-[2.5]" />
                 </button>
               </form>
+
+              {/* Live Search Autocomplete Dropdown */}
+              {searchFocused && searchQuery.trim().length >= 2 && (
+                <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-[#111827] rounded-2xl border border-[#E5E7EB] dark:border-gray-700 shadow-xl py-2 z-50 overflow-hidden">
+                  <div className="px-3.5 py-1.5 text-[11px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-wider flex items-center justify-between border-b border-[#F3F4F6] dark:border-gray-800">
+                    <span>{isAmharic ? 'የፍለጋ ጥቆማዎች' : 'Live Product Suggestions'}</span>
+                    {isSearching && <span className="text-[10px] text-[#F97316]">Searching...</span>}
+                  </div>
+                  {searchSuggestions.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-[#6B7280] dark:text-gray-400">
+                      {isSearching ? 'Finding products...' : `No products matching "${searchQuery}"`}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[#F3F4F6] dark:divide-gray-800">
+                      {searchSuggestions.map((prod) => (
+                        <Link
+                          key={prod.id || prod._id}
+                          to={`/product/${prod.slug}`}
+                          onClick={() => {
+                            setSearchFocused(false);
+                            setSearchQuery('');
+                          }}
+                          className="flex items-center gap-3 p-3 hover:bg-[#FFF7ED] dark:hover:bg-gray-800/80 transition-colors"
+                        >
+                          <img
+                            src={prod.images?.[0] || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=100'}
+                            alt={prod.title}
+                            className="w-10 h-10 rounded-lg object-cover bg-gray-100 dark:bg-gray-800 shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-[#1F2937] dark:text-white truncate">
+                              {isAmharic && prod.titleAmharic ? prod.titleAmharic : prod.title}
+                            </p>
+                            <div className="flex items-center gap-2 text-[11px]">
+                              <span className="font-extrabold text-[#F97316]">
+                                ETB {formatETB(prod.discountPrice || prod.price)}
+                              </span>
+                              {prod.category && (
+                                <span className="text-[#9CA3AF] text-[10px] uppercase">
+                                  • {typeof prod.category === 'object' ? (prod.category as any).name : prod.category}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={handleSearchSubmit}
+                        className="w-full text-center py-2.5 text-xs font-bold text-[#F97316] hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors"
+                      >
+                        {isAmharic ? `ሁሉንም "${searchQuery}" ውጤቶች ይመልከቱ →` : `View all results for "${searchQuery}" →`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Right Action Icons: Language, My Account, Wishlist, Cart, Dark Mode */}
@@ -287,12 +356,14 @@ export const Header: React.FC = () => {
           </div>
 
         {/* Mobile Search Bar (under header row) */}
-        <div className="md:hidden pb-3 pt-1">
+        <div className="md:hidden pb-3 pt-1 relative">
           <form onSubmit={handleSearchSubmit} className="relative w-full">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 250)}
               placeholder={t('nav.searchPlaceholder')}
               className="w-full pl-9 pr-20 py-2 rounded-xl bg-[#F9FAFB] dark:bg-gray-800 border border-[#E5E7EB] dark:border-gray-700 text-xs text-[#1F2937] dark:text-white placeholder-[#9CA3AF] focus:outline-hidden focus:border-[#F97316]"
             />
@@ -304,6 +375,45 @@ export const Header: React.FC = () => {
               {isAmharic ? 'ፈልግ' : 'Search'}
             </button>
           </form>
+
+          {/* Mobile Live Suggestions Dropdown */}
+          {searchFocused && searchQuery.trim().length >= 2 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#111827] rounded-xl border border-[#E5E7EB] dark:border-gray-700 shadow-xl py-1 z-50 overflow-hidden">
+              {searchSuggestions.length === 0 ? (
+                <div className="p-3 text-center text-xs text-[#6B7280] dark:text-gray-400">
+                  {isSearching ? 'Finding products...' : `No products found`}
+                </div>
+              ) : (
+                <div className="divide-y divide-[#F3F4F6] dark:divide-gray-800">
+                  {searchSuggestions.map((prod) => (
+                    <Link
+                      key={prod.id || prod._id}
+                      to={`/product/${prod.slug}`}
+                      onClick={() => {
+                        setSearchFocused(false);
+                        setSearchQuery('');
+                      }}
+                      className="flex items-center gap-2.5 p-2 hover:bg-[#FFF7ED] dark:hover:bg-gray-800 transition-colors"
+                    >
+                      <img
+                        src={prod.images?.[0] || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=100'}
+                        alt={prod.title}
+                        className="w-8 h-8 rounded-md object-cover bg-gray-100 shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold text-[#1F2937] dark:text-white truncate">
+                          {isAmharic && prod.titleAmharic ? prod.titleAmharic : prod.title}
+                        </p>
+                        <p className="text-[10px] font-bold text-[#F97316]">
+                          ETB {formatETB(prod.discountPrice || prod.price)}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

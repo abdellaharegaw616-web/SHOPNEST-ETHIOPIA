@@ -19,6 +19,7 @@ import {
   MessageSquare,
   Star,
   Search,
+  Download,
 } from 'lucide-react';
 import {
   useGetAdminStatsQuery,
@@ -156,6 +157,43 @@ export const AdminDashboardPage: React.FC = () => {
     } catch (err: any) {
       setStatusMessage(`Failed to update status: ${err.data?.message || err.message}`);
     }
+  };
+
+  const exportOrdersToCSV = () => {
+    if (!orders || orders.length === 0) return;
+    const headers = [
+      'Order Number',
+      'Date',
+      'Customer Name',
+      'Phone',
+      'City',
+      'SubCity',
+      'Payment Method',
+      'Payment Status',
+      'Order Status',
+      'Total Amount (ETB)',
+    ];
+    const rows = orders.map((ord) => [
+      ord.orderNumber,
+      new Date((ord as any).createdAt || Date.now()).toISOString().split('T')[0],
+      `"${ord.customerName || ord.shippingAddress?.fullName || 'Customer'}"`,
+      `"${ord.shippingAddress?.phone || ''}"`,
+      `"${ord.shippingAddress?.city || ''}"`,
+      `"${ord.shippingAddress?.subCity || ''}"`,
+      ord.paymentMethod,
+      ord.paymentStatus,
+      ord.orderStatus,
+      ord.totalAmount || ord.total || 0,
+    ]);
+    const csvContent =
+      'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `shopnest_orders_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const openCreateProductModal = () => {
@@ -865,9 +903,21 @@ export const AdminDashboardPage: React.FC = () => {
                   Inspect deliveries, customer contact details, and update shipment progress
                 </p>
               </div>
-              <span className="text-xs text-[#6B7280] font-semibold">
-                Total Orders: {orders.length}
-              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={exportOrdersToCSV}
+                  disabled={orders.length === 0}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-[#E5E7EB] hover:border-[#F97316] text-[#1F2937] hover:text-[#F97316] text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 shadow-2xs"
+                  title="Export orders as CSV"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export CSV</span>
+                </button>
+                <span className="text-xs text-[#6B7280] font-semibold bg-gray-100 px-2.5 py-1 rounded-lg">
+                  Total Orders: {orders.length}
+                </span>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
