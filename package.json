@@ -1,0 +1,44 @@
+{
+  "name": "shopnest-ethiopia-monorepo",
+  "version": "1.0.0",
+  "description": "ShopNest Ethiopia - A full-stack MERN e-commerce platform",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -p \"[{name}]\" -n \"SERVER,CLIENT\" -c \"cyan.bold,magenta.bold\" \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "build": "npm run build --workspace=shared && npm run build --workspace=server && npm run build --workspace=client",
+    "build:shared": "npm run build --workspace=shared",
+    "build:server": "npm run build --workspace=server",
+    "build:client": "npm run build --workspace=client",
+    "test": "npm run test --workspace=server && npm run test --workspace=client",
+    "test:server": "npm run test --workspace=server",
+    "test:client": "npm run test --workspace=client",
+    "lint": "npm run lint --workspaces --if-present",
+    "type-check": "npm run type-check --workspaces --if-present",
+    "verify": "node scripts/verify-setup.mjs",
+    "seed": "npm run seed --workspace=server",
+    "seed:clean": "npm run seed:clean --workspace=server",
+    "provision-admin": "npm run provision-admin --workspace=server"
+  },
+  "keywords": [
+    "ecommerce",
+    "mern",
+    "ethiopia",
+    "react",
+    "vite",
+    "express",
+    "typescript",
+    "mongodb"
+  ],
+  "author": "ShopNest Ethiopia Team",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

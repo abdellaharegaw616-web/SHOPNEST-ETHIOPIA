@@ -1,0 +1,2 @@
+// Server Models directory - Mongoose schema definitions (User, Product, Order, Category, etc.)
+export {};
