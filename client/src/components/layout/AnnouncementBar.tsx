@@ -24,7 +24,7 @@ export const AnnouncementBar: React.FC = () => {
           <span className="hidden sm:inline-block text-white/40">•</span>
 
           <a
-            href="tel:+251911000000"
+            href="tel:+251979567153"
             className="inline-flex items-center gap-1 hover:underline font-semibold"
           >
             <PhoneCall className="w-3 h-3" />

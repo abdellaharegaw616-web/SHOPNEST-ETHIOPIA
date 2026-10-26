@@ -237,7 +237,7 @@ npm run seed:clean
 ### 5. Provision Administrator Account
 Securely create or elevate an admin user without hardcoded secrets:
 ```bash
-npm run provision-admin -- --email=admin@shopnest.et --password=YourSecurePassword2026! --name="Abebe Admin" --phone="+251911000000"
+npm run provision-admin -- --email=abdellaj636@gmail.com --password=YourSecurePassword2026! --name="Abdellah" --phone="+251979567153"
 ```
 
 ### 6. Run the Application

@@ -62,8 +62,8 @@ export const ContactPage: React.FC = () => {
                   <p className="font-semibold text-[#1F2937] dark:text-white">
                     {isAmharic ? 'የስልክ መስመሮች' : 'Telephone Hotlines'}
                   </p>
-                  <p className="text-gray-500 dark:text-gray-400">+251 911 000 000 (Mobile & Telegram)</p>
-                  <p className="text-gray-500 dark:text-gray-400">+251 116 000 000 (Landline)</p>
+                  <p className="text-gray-500 dark:text-gray-400">0979567153 (Mobile & Telegram)</p>
+                  <p className="text-gray-500 dark:text-gray-400">0945801156 (Customer Support)</p>
                 </div>
               </div>
 
@@ -73,8 +73,7 @@ export const ContactPage: React.FC = () => {
                   <p className="font-semibold text-[#1F2937] dark:text-white">
                     {isAmharic ? 'ኢሜይል' : 'Electronic Inquiries'}
                   </p>
-                  <p className="text-gray-500 dark:text-gray-400">support@shopnestethiopia.com</p>
-                  <p className="text-gray-500 dark:text-gray-400">orders@shopnestethiopia.com</p>
+                  <p className="text-gray-500 dark:text-gray-400">abdellaj636@gmail.com</p>
                 </div>
               </div>
 

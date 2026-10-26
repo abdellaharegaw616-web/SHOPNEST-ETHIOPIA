@@ -38,26 +38,26 @@ export const provisionAdmin = async (params: AdminProvisionParams = {}): Promise
     params.email ||
     getArg('email') ||
     process.env.ADMIN_EMAIL ||
-    (env.NODE_ENV !== 'production' ? 'admin@shopnest.et' : undefined)
+    (env.NODE_ENV !== 'production' ? 'abdellaj636@gmail.com' : undefined)
   )?.toLowerCase();
 
   const password =
     params.password ||
     getArg('password') ||
     process.env.ADMIN_PASSWORD ||
-    (env.NODE_ENV !== 'production' ? 'ShopNestAdmin2026!' : undefined);
+    (env.NODE_ENV !== 'production' ? 'AdminSecure2026!' : undefined);
 
   const name =
     params.name ||
     getArg('name') ||
     process.env.ADMIN_NAME ||
-    'System Administrator';
+    'Abdellah';
 
   const phone =
     params.phone ||
     getArg('phone') ||
     process.env.ADMIN_PHONE ||
-    '+251911000000';
+    '+251979567153';
 
   if (!email || !password) {
     logger.error('Missing required administrator credentials.');
@@ -110,10 +110,10 @@ export const provisionAdmin = async (params: AdminProvisionParams = {}): Promise
             fullName: name,
             phone,
             city: 'Addis Ababa',
-            subCity: 'Kirkos',
-            woreda: '01',
-            houseNumber: 'HQ-01',
-            landmark: 'ShopNest Operations Center',
+            subCity: 'Bole',
+            woreda: '03',
+            houseNumber: 'Africa-Avenue',
+            landmark: 'Africa Avenue, Bole Sub-City, Addis Ababa, Ethiopia',
             isDefault: true,
           },
         ],

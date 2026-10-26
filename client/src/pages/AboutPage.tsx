@@ -86,7 +86,7 @@ export const AboutPage: React.FC = () => {
                 : 'Africa Avenue (Bole Road), Near Millennium Hall, Bole Sub-City, Addis Ababa, Ethiopia.'}
             </p>
             <p className="text-[#F97316] font-semibold">
-              {isAmharic ? 'የደንበኞች ድጋፍ ስልክ: +251 911 000 000' : 'Customer Support Helpline: +251 911 000 000'}
+              {isAmharic ? 'የደንበኞች ድጋፍ ስልክ: 0979567153 / 0945801156' : 'Customer Support Helpline: 0979567153 / 0945801156'}
             </p>
           </div>
           <div className="space-y-2 p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50">

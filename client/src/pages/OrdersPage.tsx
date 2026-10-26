@@ -657,7 +657,7 @@ export const OrdersPage: React.FC = () => {
               {/* Official Ethiopian Invoice Footer */}
               <div className="border-t border-[#F3F4F6] dark:border-gray-800 pt-4 text-center text-[11px] text-[#9CA3AF] dark:text-gray-500">
                 <p>This is a system-generated electronic tax invoice authorized by ShopNest Ethiopia.</p>
-                <p>For inquiries, support, or warranty claims, email support@shopnest.et or call +251 11 661 2020.</p>
+                <p>For inquiries, support, or warranty claims, email abdellaj636@gmail.com or call 0979567153 / 0945801156.</p>
               </div>
             </div>
           </div>

@@ -892,7 +892,7 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-[#1F2937] dark:text-white">Customer Support</h4>
-                  <p className="text-[11px] text-[#6B7280] dark:text-gray-400">+251 911 123 456</p>
+                  <p className="text-[11px] text-[#6B7280] dark:text-gray-400">0979567153 / 0945801156</p>
                 </div>
               </div>
             </div>
