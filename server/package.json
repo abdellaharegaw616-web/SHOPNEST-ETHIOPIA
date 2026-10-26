@@ -13,7 +13,8 @@
     "seed": "tsx src/scripts/seed.ts",
     "seed:clean": "tsx src/scripts/seed.ts --clean",
     "provision-admin": "tsx src/scripts/provision-admin.ts",
-    "sync-admin": "tsx src/scripts/sync-admin.ts"
+    "sync-admin": "tsx src/scripts/sync-admin.ts",
+    "seed:orders": "tsx src/scripts/seed-orders.ts"
   },
   "dependencies": {
     "@shopnest/shared": "*",

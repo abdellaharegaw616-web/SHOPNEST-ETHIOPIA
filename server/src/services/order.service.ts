@@ -331,7 +331,10 @@ export class OrderService {
     status: OrderStatus,
     notes?: string
   ): Promise<IOrder> {
-    const order = await Order.findById(orderId);
+    const filter: Record<string, unknown> = Types.ObjectId.isValid(orderId)
+      ? { _id: orderId }
+      : { orderNumber: orderId };
+    const order = await Order.findOne(filter);
     if (!order) {
       throw new AppError('Order not found', 404);
     }

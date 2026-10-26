@@ -20,7 +20,14 @@ import {
   Star,
   Search,
   Download,
+  Eye,
+  Printer,
+  MapPin,
+  Phone,
+  Truck,
+  Clock,
 } from 'lucide-react';
+import { OrderRecord } from '../store/api/ordersApi';
 import {
   useGetAdminStatsQuery,
   useGetAdminOrdersQuery,
@@ -69,6 +76,13 @@ export const AdminDashboardPage: React.FC = () => {
 
   const [updateStatus, { isLoading: isUpdatingStatus }] = useUpdateOrderStatusByAdminMutation();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  // Orders Management Search, Filter & Modal State
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
+  const [orderPaymentFilter, setOrderPaymentFilter] = useState<string>('all');
+  const [selectedOrderForModal, setSelectedOrderForModal] = useState<OrderRecord | null>(null);
+  const [modalNotesInput, setModalNotesInput] = useState('');
 
   // Real Coupon Management Hooks & State
   const { data: couponsData } = useGetAdminCouponsQuery(undefined, {
@@ -142,17 +156,72 @@ export const AdminDashboardPage: React.FC = () => {
   }
 
   const stats = statsData?.data;
-  const orders = ordersData?.data?.orders || [];
+  const rawOrders = ordersData?.data;
+  const orders: OrderRecord[] = Array.isArray(rawOrders)
+    ? (rawOrders as OrderRecord[])
+    : (rawOrders as any)?.orders || [];
+
+  const filteredOrders = orders.filter((ord) => {
+    if (orderStatusFilter !== 'all' && ord.orderStatus !== orderStatusFilter) {
+      return false;
+    }
+    if (orderPaymentFilter !== 'all' && ord.paymentMethod !== orderPaymentFilter) {
+      return false;
+    }
+    if (orderSearch.trim()) {
+      const q = orderSearch.toLowerCase();
+      const matchNum = (ord.orderNumber || '').toLowerCase().includes(q);
+      const matchName = (ord.customerName || ord.shippingAddress?.fullName || '').toLowerCase().includes(q);
+      const matchPhone = (ord.shippingAddress?.phone || ord.customerPhone || '').toLowerCase().includes(q);
+      const matchCity = (ord.shippingAddress?.city || '').toLowerCase().includes(q);
+      const matchSubCity = (ord.shippingAddress?.subCity || '').toLowerCase().includes(q);
+      return matchNum || matchName || matchPhone || matchCity || matchSubCity;
+    }
+    return true;
+  });
+
+  const orderCounts = {
+    all: orders.length,
+    pending: orders.filter((o) => o.orderStatus === 'pending').length,
+    processing: orders.filter((o) => o.orderStatus === 'processing').length,
+    shipped: orders.filter((o) => o.orderStatus === 'shipped').length,
+    delivered: orders.filter((o) => o.orderStatus === 'delivered').length,
+    cancelled: orders.filter((o) => o.orderStatus === 'cancelled').length,
+  };
+
   const customers = usersData?.data?.users || [];
   const inventoryLogs = inventoryData?.data || [];
   const products = productsData?.data?.products || [];
   const categories = categoriesData?.data || [];
   const reviews = reviewsData?.data || [];
 
-  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus, customNotes?: string) => {
     try {
-      await updateStatus({ orderId, status: newStatus }).unwrap();
+      await updateStatus({ orderId, status: newStatus, notes: customNotes }).unwrap();
       setStatusMessage(`Order updated to ${newStatus.toUpperCase()}`);
+      if (selectedOrderForModal) {
+        const curId = selectedOrderForModal.id || (selectedOrderForModal as any)._id || selectedOrderForModal.orderNumber;
+        if (curId === orderId) {
+          setSelectedOrderForModal((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  orderStatus: newStatus,
+                  status: newStatus,
+                  paymentStatus: newStatus === 'delivered' ? 'completed' : prev.paymentStatus,
+                  trackingHistory: [
+                    ...(prev.trackingHistory || []),
+                    {
+                      status: newStatus,
+                      notes: customNotes || `Status updated to ${newStatus}`,
+                      timestamp: new Date().toISOString(),
+                    },
+                  ],
+                }
+              : null
+          );
+        }
+      }
       setTimeout(() => setStatusMessage(null), 3000);
     } catch (err: any) {
       setStatusMessage(`Failed to update status: ${err.data?.message || err.message}`);
@@ -160,7 +229,8 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   const exportOrdersToCSV = () => {
-    if (!orders || orders.length === 0) return;
+    const listToExport = filteredOrders.length > 0 ? filteredOrders : orders;
+    if (!listToExport || listToExport.length === 0) return;
     const headers = [
       'Order Number',
       'Date',
@@ -173,7 +243,7 @@ export const AdminDashboardPage: React.FC = () => {
       'Order Status',
       'Total Amount (ETB)',
     ];
-    const rows = orders.map((ord) => [
+    const rows = listToExport.map((ord) => [
       ord.orderNumber,
       new Date((ord as any).createdAt || Date.now()).toISOString().split('T')[0],
       `"${ord.customerName || ord.shippingAddress?.fullName || 'Customer'}"`,
@@ -895,108 +965,576 @@ export const AdminDashboardPage: React.FC = () => {
 
         {/* TAB 2: ORDERS MANAGEMENT */}
         {activeTab === 'orders' && (
-          <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-2xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#F3F4F6] pb-4">
+          <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-2xs space-y-6">
+            {/* Header with Title and Global Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#F3F4F6] pb-4">
               <div>
-                <h2 className="text-xl font-extrabold text-[#1F2937]">Orders Management</h2>
+                <h2 className="text-xl font-extrabold text-[#1F2937] flex items-center gap-2">
+                  <span>Orders Management</span>
+                  <span className="text-xs font-bold text-[#F97316] bg-[#FFF7ED] px-2.5 py-0.5 rounded-full border border-orange-200">
+                    {orders.length} Total
+                  </span>
+                </h2>
                 <p className="text-xs text-[#6B7280]">
-                  Inspect deliveries, customer contact details, and update shipment progress
+                  Inspect deliveries, customer contact details, verify payments, and update shipment progress
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+
+              <div className="flex items-center gap-2.5">
                 <button
                   type="button"
                   onClick={exportOrdersToCSV}
                   disabled={orders.length === 0}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-[#E5E7EB] hover:border-[#F97316] text-[#1F2937] hover:text-[#F97316] text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 shadow-2xs"
-                  title="Export orders as CSV"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E5E7EB] hover:border-[#F97316] text-[#1F2937] hover:text-[#F97316] text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 shadow-2xs bg-white"
+                  title="Export orders to CSV file"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Export CSV</span>
                 </button>
-                <span className="text-xs text-[#6B7280] font-semibold bg-gray-100 px-2.5 py-1 rounded-lg">
-                  Total Orders: {orders.length}
-                </span>
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-[#E5E7EB] text-[#6B7280]">
-                    <th className="py-3 font-bold">Order #</th>
-                    <th className="py-3 font-bold">Customer & Phone</th>
-                    <th className="py-3 font-bold">Delivery Location</th>
-                    <th className="py-3 font-bold">Payment</th>
-                    <th className="py-3 font-bold">Status</th>
-                    <th className="py-3 font-bold">Total</th>
-                    <th className="py-3 font-bold text-right">Update Order Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#F3F4F6]">
-                  {orders.map((ord) => (
-                    <tr key={ord.orderNumber} className="hover:bg-[#F9FAFB]">
-                      <td className="py-3 font-bold text-[#1F2937]">{ord.orderNumber}</td>
-                      <td className="py-3">
-                        <span className="font-semibold text-[#1F2937] block">
-                          {ord.customerName || ord.shippingAddress?.fullName}
-                        </span>
-                        <span className="text-[11px] text-[#6B7280]">{ord.shippingAddress?.phone}</span>
-                      </td>
-                      <td className="py-3 text-[#4B5563]">
-                        {ord.shippingAddress?.city}
-                        {ord.shippingAddress?.subCity && `, ${ord.shippingAddress.subCity}`}
-                      </td>
-                      <td className="py-3">
-                        <span className="uppercase text-[11px] font-semibold text-[#1F2937] block">
-                          {ord.paymentMethod?.replace(/_/g, ' ')}
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold ${
-                            ord.paymentStatus === 'completed' ? 'text-emerald-600' : 'text-amber-600'
-                          }`}
-                        >
-                          {ord.paymentStatus?.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                            ord.orderStatus === 'delivered'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : ord.orderStatus === 'shipped'
-                              ? 'bg-purple-100 text-purple-800'
-                              : ord.orderStatus === 'processing'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {ord.orderStatus}
-                        </span>
-                      </td>
-                      <td className="py-3 font-black text-[#F97316]">
-                        ETB {formatETB(ord.totalAmount || ord.total || 0)}
-                      </td>
-                      <td className="py-3 text-right">
-                        <select
-                          disabled={isUpdatingStatus}
-                          value={ord.orderStatus}
-                          onChange={(e) =>
-                            handleStatusChange(ord.id || (ord as any)._id, e.target.value as OrderStatus)
-                          }
-                          className="px-2 py-1 rounded-lg bg-white border border-[#E5E7EB] text-xs font-semibold text-[#1F2937] cursor-pointer"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="processing">Processing</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </td>
+            {/* Search Bar & Payment Method Filter */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="md:col-span-2 relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search by Order #, Customer Name, Phone (09...), or Sub-City..."
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 rounded-xl border border-[#E5E7EB] text-xs text-[#1F2937] focus:outline-none focus:border-[#F97316] transition-colors bg-[#F9FAFB]/50"
+                />
+                {orderSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setOrderSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <select
+                  value={orderPaymentFilter}
+                  onChange={(e) => setOrderPaymentFilter(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-[#E5E7EB] text-xs font-semibold text-[#1F2937] bg-white cursor-pointer focus:outline-none focus:border-[#F97316]"
+                >
+                  <option value="all">All Payment Methods</option>
+                  <option value="telebirr">Telebirr (ቴሌብር)</option>
+                  <option value="cbe_birr">CBE Birr (ሲቢኢ ብር)</option>
+                  <option value="chapa">Chapa Payment Gateway</option>
+                  <option value="cash_on_delivery">Cash on Delivery (በእጅ በእጅ ክፍያ)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Status Filter Tabs (Pills) */}
+            <div className="flex flex-wrap items-center gap-1.5 border-b border-[#F3F4F6] pb-3">
+              {[
+                { id: 'all', label: 'All Orders', count: orderCounts.all, color: 'bg-gray-100 text-gray-800' },
+                { id: 'pending', label: 'Pending', count: orderCounts.pending, color: 'bg-amber-100 text-amber-800' },
+                { id: 'processing', label: 'Processing', count: orderCounts.processing, color: 'bg-blue-100 text-blue-800' },
+                { id: 'shipped', label: 'Shipped', count: orderCounts.shipped, countColor: 'bg-purple-100 text-purple-800' },
+                { id: 'delivered', label: 'Delivered', count: orderCounts.delivered, color: 'bg-emerald-100 text-emerald-800' },
+                { id: 'cancelled', label: 'Cancelled', count: orderCounts.cancelled, color: 'bg-rose-100 text-rose-800' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setOrderStatusFilter(tab.id)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                    orderStatusFilter === tab.id
+                      ? 'bg-[#F97316] text-white shadow-xs'
+                      : 'bg-[#F9FAFB] hover:bg-gray-100 text-[#4B5563]'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                      orderStatusFilter === tab.id
+                        ? 'bg-white/20 text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Orders Table or Empty State */}
+            {filteredOrders.length === 0 ? (
+              <div className="py-12 text-center space-y-3">
+                <div className="w-12 h-12 mx-auto rounded-full bg-gray-100 text-gray-400 flex items-center justify-center">
+                  <Package className="w-6 h-6" />
+                </div>
+                <h4 className="font-bold text-sm text-[#1F2937]">No orders found</h4>
+                <p className="text-xs text-[#6B7280] max-w-sm mx-auto">
+                  {orderSearch || orderStatusFilter !== 'all' || orderPaymentFilter !== 'all'
+                    ? 'No orders match your current search and filter criteria. Try resetting your filters.'
+                    : 'No orders recorded in the system yet.'}
+                </p>
+                {(orderSearch || orderStatusFilter !== 'all' || orderPaymentFilter !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrderSearch('');
+                      setOrderStatusFilter('all');
+                      setOrderPaymentFilter('all');
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-bold text-[#1F2937] transition-colors cursor-pointer"
+                  >
+                    Reset All Filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-[#E5E7EB] text-[#6B7280]">
+                      <th className="py-3 font-bold">Order # & Date</th>
+                      <th className="py-3 font-bold">Customer & Contact</th>
+                      <th className="py-3 font-bold">Delivery Location</th>
+                      <th className="py-3 font-bold">Payment Method</th>
+                      <th className="py-3 font-bold">Status</th>
+                      <th className="py-3 font-bold">Total</th>
+                      <th className="py-3 font-bold text-right">Actions</th>
                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F3F4F6]">
+                    {filteredOrders.map((ord) => (
+                      <tr key={ord.orderNumber} className="hover:bg-[#F9FAFB] transition-colors">
+                        <td className="py-3.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOrderForModal(ord)}
+                            className="font-bold text-[#F97316] hover:underline flex items-center gap-1 cursor-pointer"
+                            title="Click to inspect order"
+                          >
+                            <span>{ord.orderNumber}</span>
+                            <Eye className="w-3 h-3 text-[#F97316]" />
+                          </button>
+                          <span className="text-[10px] text-[#9CA3AF] block mt-0.5">
+                            {new Date(ord.createdAt || Date.now()).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5">
+                          <span className="font-semibold text-[#1F2937] block">
+                            {ord.customerName || ord.shippingAddress?.fullName || 'Customer'}
+                          </span>
+                          <a
+                            href={`tel:${ord.shippingAddress?.phone || ord.customerPhone || ''}`}
+                            className="text-[11px] text-[#4B5563] hover:text-[#F97316] hover:underline inline-flex items-center gap-1 mt-0.5"
+                          >
+                            <Phone className="w-2.5 h-2.5 text-[#F97316]" />
+                            <span>{ord.shippingAddress?.phone || ord.customerPhone || 'N/A'}</span>
+                          </a>
+                        </td>
+
+                        <td className="py-3.5 text-[#4B5563]">
+                          <span className="font-medium text-[#1F2937] block">
+                            {ord.shippingAddress?.city || 'Addis Ababa'}
+                          </span>
+                          <span className="text-[11px] text-[#6B7280] block">
+                            {ord.shippingAddress?.subCity
+                              ? `${ord.shippingAddress.subCity} Sub-City`
+                              : 'Addis Ababa'}
+                            {ord.shippingAddress?.woreda ? `, Woreda ${ord.shippingAddress.woreda}` : ''}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="uppercase text-[11px] font-bold text-[#1F2937]">
+                              {ord.paymentMethod?.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                          <span
+                            className={`inline-block text-[10px] font-bold uppercase mt-0.5 ${
+                              ord.paymentStatus === 'completed'
+                                ? 'text-emerald-600'
+                                : ord.paymentStatus === 'failed'
+                                ? 'text-rose-600'
+                                : 'text-amber-600'
+                            }`}
+                          >
+                            ● {ord.paymentStatus}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5">
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase inline-flex items-center gap-1 ${
+                              ord.orderStatus === 'delivered'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : ord.orderStatus === 'shipped'
+                                ? 'bg-purple-100 text-purple-800'
+                                : ord.orderStatus === 'processing'
+                                ? 'bg-blue-100 text-blue-800'
+                                : ord.orderStatus === 'cancelled'
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            <span>{ord.orderStatus}</span>
+                          </span>
+                        </td>
+
+                        <td className="py-3.5">
+                          <span className="font-extrabold text-[#F97316] text-xs block">
+                            ETB {formatETB(ord.totalAmount || ord.total || 0)}
+                          </span>
+                          <span className="text-[10px] text-[#9CA3AF]">
+                            {ord.items?.length || 1} item{ord.items && ord.items.length > 1 ? 's' : ''}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 text-right space-x-1.5 whitespace-nowrap">
+                          {/* Quick Status Select */}
+                          <select
+                            disabled={isUpdatingStatus}
+                            value={ord.orderStatus}
+                            onChange={(e) =>
+                              handleStatusChange(
+                                ord.id || (ord as any)._id || ord.orderNumber,
+                                e.target.value as OrderStatus
+                              )
+                            }
+                            className="px-2 py-1 rounded-lg bg-white border border-[#E5E7EB] text-xs font-semibold text-[#1F2937] cursor-pointer hover:border-[#F97316] transition-colors"
+                            title="Update shipment stage"
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="processing">Processing</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+
+                          {/* Inspect Modal Trigger */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOrderForModal(ord)}
+                            className="p-1.5 rounded-lg border border-[#E5E7EB] hover:bg-[#FFF7ED] hover:border-[#F97316] text-[#4B5563] hover:text-[#F97316] inline-flex items-center cursor-pointer transition-colors"
+                            title="Inspect full order details"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ORDER DETAILS & FULFILLMENT MODAL */}
+        {selectedOrderForModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-6 my-8 border border-gray-100 max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="flex items-start justify-between border-b border-[#F3F4F6] pb-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-black text-[#1F2937]">
+                      Order #{selectedOrderForModal.orderNumber}
+                    </h3>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        selectedOrderForModal.orderStatus === 'delivered'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : selectedOrderForModal.orderStatus === 'shipped'
+                          ? 'bg-purple-100 text-purple-800'
+                          : selectedOrderForModal.orderStatus === 'processing'
+                          ? 'bg-blue-100 text-blue-800'
+                          : selectedOrderForModal.orderStatus === 'cancelled'
+                          ? 'bg-rose-100 text-rose-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {selectedOrderForModal.orderStatus}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#6B7280]">
+                    Placed on{' '}
+                    {new Date(selectedOrderForModal.createdAt || Date.now()).toLocaleDateString('en-GB', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderForModal(null)}
+                  className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body: Two Columns */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                {/* Column 1: Customer & Delivery Address */}
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-[#F9FAFB] border border-[#E5E7EB] space-y-2">
+                    <h4 className="font-bold text-[#1F2937] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-[#F97316]" />
+                      <span>Customer Contact</span>
+                    </h4>
+                    <p className="font-semibold text-sm text-[#1F2937]">
+                      {selectedOrderForModal.customerName ||
+                        selectedOrderForModal.shippingAddress?.fullName ||
+                        'Customer'}
+                    </p>
+                    <p className="text-[#6B7280] flex items-center gap-1.5">
+                      <Phone className="w-3 h-3 text-[#F97316]" />
+                      <a
+                        href={`tel:${selectedOrderForModal.shippingAddress?.phone || selectedOrderForModal.customerPhone}`}
+                        className="hover:underline font-semibold text-[#1F2937]"
+                      >
+                        {selectedOrderForModal.shippingAddress?.phone || selectedOrderForModal.customerPhone || 'N/A'}
+                      </a>
+                    </p>
+                    {selectedOrderForModal.customerEmail && (
+                      <p className="text-[#6B7280]">{selectedOrderForModal.customerEmail}</p>
+                    )}
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-[#F9FAFB] border border-[#E5E7EB] space-y-2">
+                    <h4 className="font-bold text-[#1F2937] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-[#F97316]" />
+                      <span>Delivery Location</span>
+                    </h4>
+                    <p className="text-[#1F2937] font-semibold">
+                      {selectedOrderForModal.shippingAddress?.city || 'Addis Ababa'},{' '}
+                      {selectedOrderForModal.shippingAddress?.subCity
+                        ? `${selectedOrderForModal.shippingAddress.subCity} Sub-City`
+                        : ''}
+                    </p>
+                    <p className="text-[#6B7280]">
+                      Woreda: {selectedOrderForModal.shippingAddress?.woreda || '01'} • House #:{' '}
+                      {selectedOrderForModal.shippingAddress?.houseNumber || 'N/A'}
+                    </p>
+                    {selectedOrderForModal.shippingAddress?.landmark && (
+                      <p className="text-[#6B7280]">
+                        <span className="font-semibold text-[#1F2937]">Landmark:</span>{' '}
+                        {selectedOrderForModal.shippingAddress.landmark}
+                      </p>
+                    )}
+                    {selectedOrderForModal.deliveryInstructions && (
+                      <p className="text-[#F97316] font-medium bg-[#FFF7ED] p-2 rounded-xl mt-1">
+                        Note: {selectedOrderForModal.deliveryInstructions}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Payment Details */}
+                  <div className="p-4 rounded-2xl bg-[#F9FAFB] border border-[#E5E7EB] space-y-2">
+                    <h4 className="font-bold text-[#1F2937] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-[#F97316]" />
+                      <span>Payment Channel</span>
+                    </h4>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold uppercase text-[#1F2937]">
+                        {selectedOrderForModal.paymentMethod?.replace(/_/g, ' ')}
+                      </span>
+                      <span
+                        className={`font-bold uppercase px-2 py-0.5 rounded-full text-[10px] ${
+                          selectedOrderForModal.paymentStatus === 'completed'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}
+                      >
+                        {selectedOrderForModal.paymentStatus}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Column 2: Order Items & Status Update Controls */}
+                <div className="space-y-4">
+                  {/* Status Dispatch Box */}
+                  <div className="p-4 rounded-2xl bg-[#FFF7ED] border border-orange-200 space-y-3">
+                    <h4 className="font-bold text-[#EA580C] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-[#EA580C]" />
+                      <span>Dispatch & Status Management</span>
+                    </h4>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-semibold text-[#1F2937] block">
+                        Update Order Stage
+                      </label>
+                      <select
+                        value={selectedOrderForModal.orderStatus}
+                        onChange={(e) =>
+                          handleStatusChange(
+                            selectedOrderForModal.id ||
+                              (selectedOrderForModal as any)._id ||
+                              selectedOrderForModal.orderNumber,
+                            e.target.value as OrderStatus,
+                            modalNotesInput
+                          )
+                        }
+                        disabled={isUpdatingStatus}
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-[#E5E7EB] font-bold text-xs cursor-pointer focus:outline-none focus:border-[#F97316]"
+                      >
+                        <option value="pending">Pending (ትዕዛዝ ተመዝግቧል)</option>
+                        <option value="processing">Processing (ክፍያ ተረጋግጦ እየተዘጋጀ ነው)</option>
+                        <option value="shipped">Shipped (ለመላክ በመንገድ ላይ ነው)</option>
+                        <option value="delivered">Delivered (ለደንበኛ ደርሷል)</option>
+                        <option value="cancelled">Cancelled (ትዕዛዝ ተሰርዟል)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-[#1F2937] block">
+                        Courier / Delivery Dispatch Note
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Courier Dawit assigned with motorbike #ET-342..."
+                        value={modalNotesInput}
+                        onChange={(e) => setModalNotesInput(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-xl bg-white border border-[#E5E7EB] text-xs text-[#1F2937] focus:outline-none focus:border-[#F97316]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tracking History */}
+                  <div className="p-4 rounded-2xl bg-[#F9FAFB] border border-[#E5E7EB] space-y-2.5">
+                    <h4 className="font-bold text-[#1F2937] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-[#F97316]" />
+                      <span>Shipment Timeline Log</span>
+                    </h4>
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                      {selectedOrderForModal.trackingHistory && selectedOrderForModal.trackingHistory.length > 0 ? (
+                        selectedOrderForModal.trackingHistory.map((step, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-[11px] border-l-2 border-[#F97316] pl-2 py-0.5">
+                            <div>
+                              <span className="font-bold text-[#1F2937] uppercase">{step.status}</span>
+                              <p className="text-[#6B7280]">{step.notes || 'Status synchronized'}</p>
+                              <span className="text-[10px] text-[#9CA3AF]">
+                                {new Date(step.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} •{' '}
+                                {new Date(step.timestamp).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-[#9CA3AF] text-[11px]">No tracking events recorded yet.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Items List */}
+              <div className="space-y-3 border-t border-[#F3F4F6] pt-4 text-xs">
+                <h4 className="font-bold text-sm text-[#1F2937] flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#F97316]" />
+                  <span>Purchased Catalog Items</span>
+                </h4>
+
+                <div className="divide-y divide-[#F3F4F6] border border-[#E5E7EB] rounded-2xl overflow-hidden">
+                  {selectedOrderForModal.items?.map((item, idx) => (
+                    <div key={idx} className="p-3 flex items-center justify-between gap-3 bg-white">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0 border border-gray-200">
+                          {item.product?.images?.[0] ? (
+                            <img
+                              src={item.product.images[0]}
+                              alt={item.title || item.product.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <Package className="w-5 h-5" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-[#1F2937]">{item.title || item.product?.title}</p>
+                          <span className="text-[11px] text-[#6B7280]">
+                            SKU: {item.sku || item.product?.sku || 'N/A'} • Qty: {item.quantity}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="font-bold text-[#1F2937]">
+                          ETB {formatETB(item.subtotal || (item.price || 0) * item.quantity)}
+                        </span>
+                        <span className="text-[10px] text-[#9CA3AF] block">
+                          ETB {formatETB(item.price || item.unitPrice || 0)} each
+                        </span>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+
+                {/* Totals Summary */}
+                <div className="bg-[#F9FAFB] p-4 rounded-2xl border border-[#E5E7EB] space-y-1.5 text-xs text-[#4B5563]">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span>ETB {formatETB(selectedOrderForModal.subtotal || 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Door-to-Door Delivery Fee</span>
+                    <span>
+                      {selectedOrderForModal.deliveryFee === 0 ? (
+                        <span className="text-emerald-600 font-bold">FREE</span>
+                      ) : (
+                        `ETB ${formatETB(selectedOrderForModal.deliveryFee || 0)}`
+                      )}
+                    </span>
+                  </div>
+                  {Number(selectedOrderForModal.discountAmount || 0) > 0 && (
+                    <div className="flex justify-between text-emerald-600 font-semibold">
+                      <span>Promotional Coupon Discount</span>
+                      <span>- ETB {formatETB(selectedOrderForModal.discountAmount || 0)}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-[#E5E7EB] pt-2 flex justify-between font-black text-sm text-[#F97316]">
+                    <span>Grand Total</span>
+                    <span>ETB {formatETB(selectedOrderForModal.totalAmount || selectedOrderForModal.total || 0)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-between border-t border-[#F3F4F6] pt-4">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-300 hover:border-[#F97316] text-[#1F2937] hover:text-[#F97316] text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Packing Slip</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderForModal(null)}
+                  className="px-5 py-2 rounded-xl bg-[#1F2937] hover:bg-black text-white text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Close Window
+                </button>
+              </div>
             </div>
           </div>
         )}

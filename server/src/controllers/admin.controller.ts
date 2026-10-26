@@ -97,17 +97,44 @@ export const getAllOrders = async (
 ): Promise<void> => {
   try {
     const filter: Record<string, unknown> = {};
-    if (req.query.status) {
+    if (req.query.status && req.query.status !== 'all') {
       filter.orderStatus = req.query.status;
     }
 
+    if (req.query.search) {
+      const searchStr = String(req.query.search).trim();
+      const searchRegex = new RegExp(searchStr, 'i');
+      filter.$or = [
+        { orderNumber: searchRegex },
+        { customerName: searchRegex },
+        { customerPhone: searchRegex },
+        { 'shippingAddress.fullName': searchRegex },
+        { 'shippingAddress.phone': searchRegex },
+        { 'shippingAddress.city': searchRegex },
+        { 'shippingAddress.subCity': searchRegex },
+      ];
+    }
+
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = parseInt(req.query.limit as string, 10) || 100;
+    const skip = (page - 1) * limit;
+
+    const total = await Order.countDocuments(filter);
     const orders = await Order.find(filter)
       .populate('user', 'name email phone')
-      .sort({ createdAt: -1 });
+      .populate('items.product', 'title images price slug')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     res.status(200).json({
       success: true,
-      data: orders,
+      data: {
+        orders,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
