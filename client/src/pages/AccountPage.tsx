@@ -18,6 +18,7 @@ import {
   MessageSquare,
   AlertCircle,
   Check,
+  RotateCcw,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { logout, updateUser } from '../store/slices/authSlice';
@@ -30,10 +31,11 @@ import {
   useSendTestNotificationMutation,
 } from '../store/api/authApi';
 import { useGetUserOrdersQuery, OrderRecord } from '../store/api/ordersApi';
+import { useGetMyReturnsQuery } from '../store/api/returnsApi';
 import { formatETB } from '../components/common/ProductPrice';
-import { EthiopianAddress, ETHIOPIA_CONSTANTS } from '@shopnest/shared';
+import { EthiopianAddress, ETHIOPIA_CONSTANTS, ReturnRequestDTO } from '@shopnest/shared';
 
-type AccountTab = 'dashboard' | 'orders' | 'addresses' | 'wishlist' | 'settings';
+type AccountTab = 'dashboard' | 'orders' | 'returns' | 'addresses' | 'wishlist' | 'settings';
 
 export const AccountPage: React.FC = () => {
   const navigate = useNavigate();
@@ -48,6 +50,10 @@ export const AccountPage: React.FC = () => {
   const { data: ordersResponse } = useGetUserOrdersQuery(undefined, {
     skip: !isAuthenticated,
   });
+  const { data: myReturnsData } = useGetMyReturnsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const returnsList = myReturnsData?.data || [];
 
   // Profile Upload & Edit State
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -323,6 +329,31 @@ export const AccountPage: React.FC = () => {
             </Link>
 
             <button
+              onClick={() => setActiveTab('returns')}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                activeTab === 'returns'
+                  ? 'bg-[#F97316] text-white shadow-xs'
+                  : 'text-[#4B5563] dark:text-gray-300 hover:bg-[#F9FAFB] dark:hover:bg-gray-800 hover:text-[#1F2937] dark:hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <RotateCcw className="w-4 h-4" />
+                <span>Returns & Refunds</span>
+              </div>
+              {returnsList.length > 0 && (
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    activeTab === 'returns'
+                      ? 'bg-white text-[#F97316]'
+                      : 'bg-orange-100 dark:bg-orange-950 text-[#F97316]'
+                  }`}
+                >
+                  {returnsList.length}
+                </span>
+              )}
+            </button>
+
+            <button
               onClick={() => setActiveTab('addresses')}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors ${
                 activeTab === 'addresses'
@@ -477,7 +508,8 @@ export const AccountPage: React.FC = () => {
                         <th className="py-2.5 font-bold">Order #</th>
                         <th className="py-2.5 font-bold">Status</th>
                         <th className="py-2.5 font-bold">Date</th>
-                        <th className="py-2.5 font-bold text-right">Total</th>
+                        <th className="py-2.5 font-bold">Total</th>
+                        <th className="py-2.5 font-bold text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#F3F4F6] dark:divide-gray-800">
@@ -510,8 +542,16 @@ export const AccountPage: React.FC = () => {
                               year: 'numeric',
                             })}
                           </td>
-                          <td className="py-3 font-bold text-right text-[#1F2937] dark:text-gray-200">
+                          <td className="py-3 font-bold text-[#1F2937] dark:text-gray-200">
                             ETB {formatETB(order.totalAmount || order.total || 0)}
+                          </td>
+                          <td className="py-3 text-right">
+                            <Link
+                              to={`/track-order?order=${order.orderNumber}`}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-[#F97316] hover:underline"
+                            >
+                              {order.orderStatus === 'delivered' ? 'Return / Details' : 'Track'}
+                            </Link>
                           </td>
                         </tr>
                       ))}
@@ -530,6 +570,99 @@ export const AccountPage: React.FC = () => {
                   >
                     Explore Products
                   </Link>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB: RETURNS & REFUNDS */}
+          {activeTab === 'returns' && (
+            <div className="bg-white dark:bg-[#111827] rounded-2xl border border-[#E5E7EB] dark:border-gray-800 p-6 shadow-2xs space-y-5 transition-colors">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#F3F4F6] dark:border-gray-800 pb-3">
+                <div>
+                  <h2 className="text-base font-bold text-[#1F2937] dark:text-white">
+                    Returns & Refund Requests (የእቃ መመለስ)
+                  </h2>
+                  <p className="text-xs text-[#6B7280] dark:text-gray-400">
+                    Track returned items, inspection decisions, and verified refunds.
+                  </p>
+                </div>
+              </div>
+
+              {returnsList.length > 0 ? (
+                <div className="space-y-3">
+                  {returnsList.map((ret: ReturnRequestDTO) => (
+                    <div
+                      key={ret.id || (ret as any)._id}
+                      className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-[#F9FAFB] dark:bg-gray-900/50 space-y-2 text-xs"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <RotateCcw className="w-4 h-4 text-[#F97316]" />
+                          <span className="font-bold text-[#1F2937] dark:text-white">
+                            Order #{ret.orderNumber}
+                          </span>
+                          <span className="text-[#9CA3AF]">
+                            • {new Date(ret.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-block self-start sm:self-auto ${
+                            ret.status === 'refunded'
+                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300'
+                              : ret.status === 'approved'
+                              ? 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300'
+                              : ret.status === 'rejected'
+                              ? 'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300'
+                              : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300'
+                          }`}
+                        >
+                          {ret.status === 'refunded' && '💸 Refunded'}
+                          {ret.status === 'approved' && '✅ Return Approved'}
+                          {ret.status === 'rejected' && '❌ Declined'}
+                          {ret.status === 'pending' && '⏳ Review in Progress'}
+                        </span>
+                      </div>
+
+                      <div className="text-gray-600 dark:text-gray-300 space-y-1">
+                        <p>
+                          <strong>Reason:</strong> <span className="capitalize">{ret.reason.replace(/_/g, ' ')}</span>
+                          {ret.customerNote && ` — "${ret.customerNote}"`}
+                        </p>
+                        {ret.status === 'refunded' && (
+                          <p className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                            Refund of ETB {formatETB(ret.refundAmount || 0)} transferred via {ret.refundMethod?.toUpperCase()} (Tx Ref: {ret.refundReference}) on {ret.processedAt ? new Date(ret.processedAt).toLocaleDateString() : 'N/A'}.
+                          </p>
+                        )}
+                        {ret.status === 'rejected' && ret.rejectionReason && (
+                          <p className="text-rose-600 dark:text-rose-400">
+                            Reason for rejection: {ret.rejectionReason}
+                          </p>
+                        )}
+                      </div>
+
+                      {ret.images && ret.images.length > 0 && (
+                        <div className="flex gap-2 pt-1">
+                          {ret.images.map((img, imgIdx) => (
+                            <img
+                              key={imgIdx}
+                              src={img}
+                              alt="Return photo"
+                              className="w-12 h-12 rounded-lg object-cover border border-gray-200 dark:border-gray-700"
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10 space-y-2 text-[#6B7280] dark:text-gray-400 text-xs">
+                  <RotateCcw className="w-8 h-8 mx-auto text-gray-400 stroke-1" />
+                  <p>You have no active return or refund requests.</p>
+                  <p className="text-[11px] text-[#9CA3AF]">
+                    You can request a return from your Track Order page within 7 days of receiving your package.
+                  </p>
                 </div>
               )}
             </div>

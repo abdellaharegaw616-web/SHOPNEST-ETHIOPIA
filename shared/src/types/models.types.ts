@@ -234,3 +234,63 @@ export interface ReviewEligibilityDTO {
   message?: string;
 }
 
+export type ReturnReason =
+  | 'damaged_item'
+  | 'wrong_item'
+  | 'quality_issue'
+  | 'size_not_fitting'
+  | 'defective'
+  | 'other';
+
+export type ReturnRequestStatus = 'pending' | 'approved' | 'rejected' | 'refunded';
+
+export interface ReturnItemDTO {
+  product: string;
+  title: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface ReturnRequestDTO {
+  id: string;
+  _id?: string;
+  order: string | { _id?: string; id?: string; orderNumber: string; totalAmount: number };
+  orderNumber: string;
+  user: string | { _id?: string; id?: string; name: string; email: string; phone?: string };
+  items: ReturnItemDTO[];
+  reason: ReturnReason;
+  customerNote?: string;
+  images: string[];
+  status: ReturnRequestStatus;
+  adminNotes?: string;
+  rejectionReason?: string;
+  refundAmount?: number;
+  refundMethod?: EthiopianPaymentProvider;
+  refundReference?: string;
+  processedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateReturnRequestDTO {
+  orderId: string;
+  reason: ReturnReason;
+  customerNote?: string;
+  images?: string[];
+  items?: { product: string; quantity: number }[];
+}
+
+export interface ModerateReturnDTO {
+  status: 'approved' | 'rejected';
+  adminNotes?: string;
+  rejectionReason?: string;
+}
+
+export interface ProcessRefundDTO {
+  refundAmount: number;
+  refundMethod: EthiopianPaymentProvider;
+  refundReference: string;
+  adminNotes?: string;
+}
+
+

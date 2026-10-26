@@ -31,6 +31,7 @@ import {
   Radio,
   Activity,
   Check,
+  RotateCcw,
 } from 'lucide-react';
 import { OrderRecord } from '../store/api/ordersApi';
 import {
@@ -61,11 +62,16 @@ import {
   useGetNotificationGatewayStatusQuery,
   useSendTestNotificationMutation,
 } from '../store/api/authApi';
+import {
+  useGetAdminReturnsQuery,
+  useModerateReturnMutation,
+  useProcessRefundMutation,
+} from '../store/api/returnsApi';
 import { useAppSelector } from '../store/hooks';
 import { formatETB } from '../components/common/ProductPrice';
-import { OrderStatus, CouponDTO } from '@shopnest/shared';
+import { OrderStatus, CouponDTO, ReturnRequestDTO, EthiopianPaymentProvider } from '@shopnest/shared';
 
-type AdminTab = 'dashboard' | 'products' | 'orders' | 'customers' | 'inventory' | 'promotions' | 'reviews' | 'settings';
+type AdminTab = 'dashboard' | 'products' | 'orders' | 'returns' | 'customers' | 'inventory' | 'promotions' | 'reviews' | 'settings';
 
 export const AdminDashboardPage: React.FC = () => {
   const { user, isAuthenticated } = useAppSelector((state) => state.auth);
@@ -176,6 +182,93 @@ export const AdminDashboardPage: React.FC = () => {
       setTimeout(() => setAdminNotifFeedback(null), 5000);
     } catch (err: any) {
       setAdminNotifFeedback(err.data?.message || 'Failed to trigger test notification');
+    }
+  };
+
+  // Returns & Refunds Management Hooks & State
+  const { data: adminReturnsData } = useGetAdminReturnsQuery(undefined, {
+    skip: !isAuthenticated || user?.role !== 'admin',
+  });
+  const [moderateReturn, { isLoading: isModeratingReturn }] = useModerateReturnMutation();
+  const [processRefund, { isLoading: isProcessingRefund }] = useProcessRefundMutation();
+
+  const [returnStatusFilter, setReturnStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'refunded'>('all');
+  const [returnSearch, setReturnSearch] = useState('');
+  const [selectedReturnForRefundModal, setSelectedReturnForRefundModal] = useState<ReturnRequestDTO | null>(null);
+  const [refundAmountInput, setRefundAmountInput] = useState<number>(0);
+  const [refundMethodInput, setRefundMethodInput] = useState<EthiopianPaymentProvider>('telebirr');
+  const [refundReferenceInput, setRefundReferenceInput] = useState('');
+  const [refundAdminNotesInput, setRefundAdminNotesInput] = useState('');
+  const [refundFormError, setRefundFormError] = useState('');
+
+  const [rejectReturnModal, setRejectReturnModal] = useState<{ id: string; orderNumber: string } | null>(null);
+  const [rejectReasonInput, setRejectReasonInput] = useState('');
+  const [returnImageModal, setReturnImageModal] = useState<string | null>(null);
+
+  const returnsList: ReturnRequestDTO[] = adminReturnsData?.data || [];
+  const pendingReturnsCount = returnsList.filter((r) => r.status === 'pending').length;
+
+  const handleApproveReturn = async (returnId: string) => {
+    try {
+      await moderateReturn({ returnId, status: 'approved' }).unwrap();
+      setStatusMessage('Return request approved. Customer notified.');
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err: any) {
+      setStatusMessage(err?.data?.message || 'Failed to approve return');
+    }
+  };
+
+  const handleConfirmRejectReturn = async () => {
+    if (!rejectReturnModal || !rejectReasonInput.trim()) return;
+    try {
+      await moderateReturn({
+        returnId: rejectReturnModal.id,
+        status: 'rejected',
+        rejectionReason: rejectReasonInput.trim(),
+      }).unwrap();
+      setStatusMessage('Return request rejected. Notification dispatched.');
+      setRejectReturnModal(null);
+      setRejectReasonInput('');
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err: any) {
+      setStatusMessage(err?.data?.message || 'Failed to reject return');
+    }
+  };
+
+  const handleOpenRefundModal = (ret: ReturnRequestDTO) => {
+    setSelectedReturnForRefundModal(ret);
+    setRefundAmountInput(ret.refundAmount || 0);
+    setRefundMethodInput(
+      (ret.refundMethod as EthiopianPaymentProvider) || 'telebirr'
+    );
+    setRefundReferenceInput('');
+    setRefundAdminNotesInput('');
+    setRefundFormError('');
+  };
+
+  const handleConfirmProcessRefund = async () => {
+    if (!selectedReturnForRefundModal) return;
+    if (!refundReferenceInput.trim()) {
+      setRefundFormError('Provider transaction reference / receipt number is required.');
+      return;
+    }
+    if (refundAmountInput <= 0) {
+      setRefundFormError('Refund amount must be greater than 0 ETB.');
+      return;
+    }
+    try {
+      await processRefund({
+        returnId: selectedReturnForRefundModal.id,
+        refundAmount: refundAmountInput,
+        refundMethod: refundMethodInput,
+        refundReference: refundReferenceInput.trim(),
+        adminNotes: refundAdminNotesInput.trim() || undefined,
+      }).unwrap();
+      setStatusMessage('Refund successfully confirmed and recorded. Order payment updated.');
+      setSelectedReturnForRefundModal(null);
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err: any) {
+      setRefundFormError(err?.data?.message || 'Failed to process refund');
     }
   };
 
@@ -471,6 +564,23 @@ export const AdminDashboardPage: React.FC = () => {
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Orders Management</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('returns')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors ${
+                activeTab === 'returns' ? 'bg-[#F97316] text-white' : 'text-gray-300 hover:bg-gray-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <RotateCcw className="w-4 h-4" />
+                <span>Returns & Refunds</span>
+              </div>
+              {pendingReturnsCount > 0 && (
+                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-rose-500 text-white">
+                  {pendingReturnsCount}
+                </span>
+              )}
             </button>
 
             <button
@@ -1580,6 +1690,497 @@ export const AdminDashboardPage: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* TAB: RETURNS & REFUNDS WORKFLOW */}
+        {activeTab === 'returns' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-extrabold text-[#1F2937]">Returns & Refunds Management</h2>
+                <p className="text-xs text-[#6B7280]">
+                  Inspect buyer return requests, audit uploaded photo evidence, approve/reject claims, and record verified Telebirr/CBE Birr refunds with transaction tracking.
+                </p>
+              </div>
+              <div className="text-xs font-semibold text-[#6B7280] bg-white px-3 py-1.5 rounded-xl border border-[#E5E7EB]">
+                Guarantee Policy: 7-Day Window
+              </div>
+            </div>
+
+            {/* Filter Pills & Search */}
+            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {(['all', 'pending', 'approved', 'refunded', 'rejected'] as const).map((filter) => {
+                  const count =
+                    filter === 'all'
+                      ? returnsList.length
+                      : returnsList.filter((r) => r.status === filter).length;
+                  return (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setReturnStatusFilter(filter)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                        returnStatusFilter === filter
+                          ? 'bg-[#F97316] text-white shadow-2xs'
+                          : 'bg-[#F9FAFB] text-[#4B5563] hover:bg-gray-100 border border-[#E5E7EB]'
+                      }`}
+                    >
+                      <span>{filter}</span>
+                      <span
+                        className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                          returnStatusFilter === filter
+                            ? 'bg-white/20 text-white'
+                            : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="relative min-w-[240px]">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by Order #, reason, customer..."
+                  value={returnSearch}
+                  onChange={(e) => setReturnSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-[#E5E7EB] text-xs bg-[#F9FAFB] focus:bg-white focus:outline-hidden focus:border-[#F97316]"
+                />
+              </div>
+            </div>
+
+            {/* Returns Table */}
+            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-2xs overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-[#E5E7EB] text-[#6B7280]">
+                  <tr>
+                    <th className="py-3 font-bold">Order # / Date</th>
+                    <th className="py-3 font-bold">Customer & Contact</th>
+                    <th className="py-3 font-bold">Reason & Items</th>
+                    <th className="py-3 font-bold">Photo Proof</th>
+                    <th className="py-3 font-bold">Status</th>
+                    <th className="py-3 font-bold">Refund Record</th>
+                    <th className="py-3 font-bold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#F3F4F6]">
+                  {returnsList
+                    .filter((r) => {
+                      if (returnStatusFilter !== 'all' && r.status !== returnStatusFilter) return false;
+                      if (returnSearch.trim()) {
+                        const q = returnSearch.toLowerCase();
+                        const matchOrder = (r.orderNumber || '').toLowerCase().includes(q);
+                        const matchReason = (r.reason || '').toLowerCase().includes(q);
+                        const userObj = typeof r.user === 'object' ? r.user : null;
+                        const matchUser =
+                          (userObj?.name || '').toLowerCase().includes(q) ||
+                          (userObj?.email || '').toLowerCase().includes(q) ||
+                          (userObj?.phone || '').toLowerCase().includes(q);
+                        return matchOrder || matchReason || matchUser;
+                      }
+                      return true;
+                    })
+                    .length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-[#9CA3AF]">
+                        No return requests match the selected criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    returnsList
+                      .filter((r) => {
+                        if (returnStatusFilter !== 'all' && r.status !== returnStatusFilter) return false;
+                        if (returnSearch.trim()) {
+                          const q = returnSearch.toLowerCase();
+                          const matchOrder = (r.orderNumber || '').toLowerCase().includes(q);
+                          const matchReason = (r.reason || '').toLowerCase().includes(q);
+                          const userObj = typeof r.user === 'object' ? r.user : null;
+                          const matchUser =
+                            (userObj?.name || '').toLowerCase().includes(q) ||
+                            (userObj?.email || '').toLowerCase().includes(q) ||
+                            (userObj?.phone || '').toLowerCase().includes(q);
+                          return matchOrder || matchReason || matchUser;
+                        }
+                        return true;
+                      })
+                      .map((ret: ReturnRequestDTO) => {
+                        const userObj = typeof ret.user === 'object' ? ret.user : null;
+                        return (
+                          <tr key={ret.id || (ret as any)._id} className="hover:bg-[#F9FAFB]">
+                            <td className="py-3">
+                              <span className="font-bold text-[#1F2937] block">#{ret.orderNumber}</span>
+                              <span className="text-[11px] text-[#9CA3AF]">
+                                {new Date(ret.createdAt).toLocaleDateString()}
+                              </span>
+                            </td>
+
+                            <td className="py-3">
+                              <div className="font-semibold text-[#1F2937]">
+                                {userObj?.name || 'Customer'}
+                              </div>
+                              <div className="text-[11px] text-[#6B7280]">
+                                {userObj?.email && <span>{userObj.email}</span>}
+                              </div>
+                              {userObj?.phone && (
+                                <a
+                                  href={`tel:${userObj.phone}`}
+                                  className="text-[11px] text-[#F97316] font-mono hover:underline inline-flex items-center gap-1"
+                                >
+                                  <Phone className="w-3 h-3" />
+                                  <span>{userObj.phone}</span>
+                                </a>
+                              )}
+                            </td>
+
+                            <td className="py-3 max-w-[220px]">
+                              <span className="font-bold text-[#1F2937] capitalize block">
+                                {ret.reason.replace(/_/g, ' ')}
+                              </span>
+                              {ret.customerNote && (
+                                <p className="text-[11px] text-[#4B5563] italic truncate">
+                                  "{ret.customerNote}"
+                                </p>
+                              )}
+                              <span className="text-[10px] text-[#9CA3AF]">
+                                {ret.items?.length || 0} items returned
+                              </span>
+                            </td>
+
+                            <td className="py-3">
+                              {ret.images && ret.images.length > 0 ? (
+                                <div className="flex items-center gap-1.5">
+                                  {ret.images.map((img: string, imgIdx: number) => (
+                                    <img
+                                      key={imgIdx}
+                                      src={img}
+                                      alt="Return evidence"
+                                      onClick={() => setReturnImageModal(img)}
+                                      className="w-9 h-9 rounded-lg object-cover border border-gray-200 cursor-pointer hover:scale-105 transition-transform"
+                                    />
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-[11px] text-gray-400">No photos</span>
+                              )}
+                            </td>
+
+                            <td className="py-3">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  ret.status === 'refunded'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : ret.status === 'approved'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : ret.status === 'rejected'
+                                    ? 'bg-rose-100 text-rose-800'
+                                    : 'bg-amber-100 text-amber-800'
+                                }`}
+                              >
+                                {ret.status === 'refunded' && '💸 Refunded'}
+                                {ret.status === 'approved' && '✅ Approved'}
+                                {ret.status === 'rejected' && '❌ Declined'}
+                                {ret.status === 'pending' && '⏳ Pending Review'}
+                              </span>
+                            </td>
+
+                            <td className="py-3">
+                              {ret.status === 'refunded' ? (
+                                <div className="text-[11px] text-emerald-700 space-y-0.5">
+                                  <div className="font-bold">
+                                    ETB {formatETB(ret.refundAmount || 0)} ({ret.refundMethod?.toUpperCase()})
+                                  </div>
+                                  <div className="font-mono text-[10px] text-gray-600 truncate max-w-[140px]">
+                                    Ref: {ret.refundReference}
+                                  </div>
+                                </div>
+                              ) : ret.status === 'approved' ? (
+                                <span className="text-[11px] text-blue-700 font-semibold">
+                                  Eligible: ETB {formatETB(ret.refundAmount || 0)}
+                                </span>
+                              ) : ret.status === 'rejected' ? (
+                                <span className="text-[11px] text-rose-600 truncate block max-w-[140px]" title={ret.rejectionReason}>
+                                  {ret.rejectionReason || 'Declined'}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] text-gray-400">Awaiting Decision</span>
+                              )}
+                            </td>
+
+                            <td className="py-3 text-right">
+                              <div className="inline-flex items-center gap-1.5">
+                                {ret.status === 'pending' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      disabled={isModeratingReturn}
+                                      onClick={() => handleApproveReturn(ret.id || (ret as any)._id)}
+                                      className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 cursor-pointer inline-flex items-center"
+                                      title="Approve Return Request"
+                                    >
+                                      <Check className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={isModeratingReturn}
+                                      onClick={() => setRejectReturnModal({ id: ret.id || (ret as any)._id, orderNumber: ret.orderNumber })}
+                                      className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer inline-flex items-center"
+                                      title="Decline Return Request"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </>
+                                )}
+
+                                {ret.status === 'approved' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenRefundModal(ret)}
+                                    className="px-3 py-1 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white font-bold text-xs cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                                  >
+                                    <span>Process Refund</span>
+                                  </button>
+                                )}
+
+                                {ret.status === 'refunded' && (
+                                  <span className="text-[11px] text-emerald-600 font-bold inline-flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Settled</span>
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Process Refund Modal (Telebirr / CBE Birr / Chapa) */}
+            {selectedReturnForRefundModal && (
+              <div
+                className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs"
+                onClick={() => setSelectedReturnForRefundModal(null)}
+              >
+                <div
+                  className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between border-b border-[#F3F4F6] pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-[#FFF7ED] text-[#F97316] flex items-center justify-center">
+                        <RotateCcw className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-extrabold text-[#1F2937]">Confirm & Process Refund</h3>
+                        <p className="text-[11px] text-[#6B7280]">
+                          Order #{selectedReturnForRefundModal.orderNumber}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedReturnForRefundModal(null)}
+                      className="p-1 rounded-lg text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Mandatory Requirement Warning Note */}
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 space-y-1">
+                    <p className="font-bold flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Security & Policy Rule</span>
+                    </p>
+                    <p>
+                      Never mark a refund as completed until it has been dispatched via your payment provider and verified with a provider transaction ID.
+                    </p>
+                  </div>
+
+                  {refundFormError && (
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+                      {refundFormError}
+                    </div>
+                  )}
+
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <label className="font-bold text-[#1F2937] block mb-1">
+                        Refund Amount (የተመላሽ ብር መጠን) *
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">ETB</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={refundAmountInput}
+                          onChange={(e) => setRefundAmountInput(Number(e.target.value))}
+                          className="w-full pl-12 pr-3 py-2 rounded-xl border border-[#E5E7EB] font-bold text-sm text-[#1F2937] focus:border-[#F97316] focus:outline-hidden"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-[#1F2937] block mb-1">
+                        Disbursement Provider / Method (የክፍያ ዘዴ) *
+                      </label>
+                      <select
+                        value={refundMethodInput}
+                        onChange={(e) => setRefundMethodInput(e.target.value as EthiopianPaymentProvider)}
+                        className="w-full px-3 py-2 rounded-xl border border-[#E5E7EB] font-medium text-xs text-[#1F2937] bg-white focus:border-[#F97316] focus:outline-hidden"
+                      >
+                        <option value="telebirr">Telebirr (ቴሌብር)</option>
+                        <option value="cbe_birr">CBE Birr (ሲቢኢ ብር)</option>
+                        <option value="chapa">Chapa Gateway</option>
+                        <option value="cash">Cash on Hand / In-Store (ጥሬ ገንዘብ)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-[#1F2937] block mb-1">
+                        Provider Transaction Reference (የግብይት ቁጥር / Receipt ID) *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. TLB8392019482 or CBE928472910"
+                        value={refundReferenceInput}
+                        onChange={(e) => setRefundReferenceInput(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-[#E5E7EB] font-mono text-xs text-[#1F2937] focus:border-[#F97316] focus:outline-hidden"
+                      />
+                      <span className="text-[10px] text-[#9CA3AF] mt-1 block">
+                        Strictly mandatory for audit trails and customer confirmation receipt.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-[#1F2937] block mb-1">
+                        Internal Admin Notes (Optional)
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="e.g. Inspected returned package at Bole office, intact condition."
+                        value={refundAdminNotesInput}
+                        onChange={(e) => setRefundAdminNotesInput(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-[#E5E7EB] text-xs text-[#1F2937] focus:border-[#F97316] focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-[#F3F4F6]">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedReturnForRefundModal(null)}
+                      className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 text-xs font-semibold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isProcessingRefund}
+                      onClick={handleConfirmProcessRefund}
+                      className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{isProcessingRefund ? 'Confirming...' : 'Record Confirmed Refund'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Reject Return Reason Modal */}
+            {rejectReturnModal && (
+              <div
+                className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs"
+                onClick={() => setRejectReturnModal(null)}
+              >
+                <div
+                  className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between border-b border-[#F3F4F6] pb-3">
+                    <h3 className="text-base font-extrabold text-[#1F2937]">
+                      Decline Return Request (#{rejectReturnModal.orderNumber})
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setRejectReturnModal(null)}
+                      className="p-1 rounded-lg text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-[#6B7280]">
+                    Please provide a clear reason for declining this request. This will be visible to the customer and dispatched via their notification preferences.
+                  </p>
+
+                  <div>
+                    <label className="font-bold text-[#1F2937] text-xs block mb-1">
+                      Reason for Rejection *
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="e.g. Returned item shows signs of heavy external wear not present at delivery."
+                      value={rejectReasonInput}
+                      onChange={(e) => setRejectReasonInput(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-[#E5E7EB] text-xs text-[#1F2937] focus:border-rose-500 focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-[#F3F4F6]">
+                    <button
+                      type="button"
+                      onClick={() => setRejectReturnModal(null)}
+                      className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 text-xs font-semibold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isModeratingReturn || !rejectReasonInput.trim()}
+                      onClick={handleConfirmRejectReturn}
+                      className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {isModeratingReturn ? 'Rejecting...' : 'Confirm Decline'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Photo Preview Modal */}
+            {returnImageModal && (
+              <div
+                className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-xs"
+                onClick={() => setReturnImageModal(null)}
+              >
+                <div
+                  className="relative max-w-2xl max-h-[85vh] bg-transparent rounded-2xl overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setReturnImageModal(null)}
+                    className="absolute top-3 right-3 p-1.5 rounded-full bg-black/70 hover:bg-black text-white cursor-pointer z-10"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                  <img
+                    src={returnImageModal}
+                    alt="Return photo evidence"
+                    className="w-full h-auto max-h-[80vh] object-contain rounded-2xl"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 

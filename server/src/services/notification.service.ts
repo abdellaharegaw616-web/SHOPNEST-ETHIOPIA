@@ -10,6 +10,8 @@ export type OrderNotificationEvent =
   | 'order_delivered'
   | 'order_cancelled'
   | 'return_requested'
+  | 'return_approved'
+  | 'return_rejected'
   | 'refund_processed';
 
 export interface NotificationResult {
@@ -81,6 +83,8 @@ export class NotificationService {
         order_delivered: { en: 'Order Delivered Successfully', am: 'ትዕዛዝዎ ደርሷል', emoji: '✅' },
         order_cancelled: { en: 'Order Cancelled', am: 'ትዕዛዝ ተሰርዟል', emoji: '❌' },
         return_requested: { en: 'Return Request Received', am: 'የመመለሻ ጥያቄ ደርሶናል', emoji: '🔄' },
+        return_approved: { en: 'Return Request Approved', am: 'የመመለሻ ጥያቄ ፀድቋል', emoji: '✅' },
+        return_rejected: { en: 'Return Request Declined', am: 'የመመለሻ ጥያቄ አልተቀበለም', emoji: '⚠️' },
         refund_processed: { en: 'Refund Processed', am: 'ተመላሽ ገንዘብ ተጠናቋል', emoji: '💸' },
       };
 

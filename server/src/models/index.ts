@@ -9,3 +9,4 @@ export * from './Wishlist';
 export * from './Coupon';
 export * from './InventoryMovement';
 export * from './RefreshSession';
+export * from './ReturnRequest';

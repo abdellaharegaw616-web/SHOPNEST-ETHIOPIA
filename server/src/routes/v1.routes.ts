@@ -10,6 +10,7 @@ import reviewRoutes from './review.routes';
 import adminRoutes from './admin.routes';
 import couponRoutes from './coupon.routes';
 import notificationRoutes from './notification.routes';
+import { returnRoutes } from './return.routes';
 import healthRoutes from './health.routes';
 
 const router = Router();
@@ -24,6 +25,7 @@ router.use('/coupons', couponRoutes);
 router.use('/orders', orderRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/reviews', reviewRoutes);
+router.use('/returns', returnRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/admin', adminRoutes);
 router.use('/health', healthRoutes);

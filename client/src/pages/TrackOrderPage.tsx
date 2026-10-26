@@ -13,13 +13,21 @@ import {
   CreditCard,
   ArrowRight,
   Printer,
+  RotateCcw,
+  Upload,
+  X,
+  ShieldCheck,
 } from 'lucide-react';
 import { useGetOrderByIdQuery } from '../store/api/ordersApi';
+import { useCreateReturnMutation, useGetMyReturnsQuery } from '../store/api/returnsApi';
+import { useAppSelector } from '../store/hooks';
 import { formatETB } from '../components/common/ProductPrice';
+import { ReturnReason } from '@shopnest/shared';
 
 export const TrackOrderPage: React.FC = () => {
   const { i18n } = useTranslation();
   const isAmharic = i18n.language?.startsWith('am');
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get('order') || '';
@@ -33,6 +41,24 @@ export const TrackOrderPage: React.FC = () => {
   );
 
   const order = orderResponse?.data;
+
+  // Returns & Refunds State
+  const { data: userReturnsData } = useGetMyReturnsQuery(undefined, { skip: !isAuthenticated });
+  const [createReturn, { isLoading: isSubmittingReturn }] = useCreateReturnMutation();
+
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnReason, setReturnReason] = useState<ReturnReason>('damaged_item');
+  const [returnNote, setReturnNote] = useState('');
+  const [returnPhotos, setReturnPhotos] = useState<string[]>([]);
+  const [returnError, setReturnError] = useState('');
+  const [returnSuccessMsg, setReturnSuccessMsg] = useState('');
+
+  // Find if a return already exists for this order
+  const existingReturn = userReturnsData?.data?.find((ret: any) => {
+    const retOrderId = typeof ret.order === 'object' ? ret.order?._id || ret.order?.id : ret.order;
+    const currentOrderId = order?._id || order?.id;
+    return retOrderId === currentOrderId || ret.orderNumber === order?.orderNumber;
+  });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -356,6 +382,259 @@ export const TrackOrderPage: React.FC = () => {
                 ))}
               </div>
             </div>
+
+            {/* RETURNS & REFUNDS SECTION (Available for Delivered Orders) */}
+            {order.orderStatus === 'delivered' && (
+              <div className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-[#FFF7ED]/50 dark:bg-orange-950/20 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm font-bold text-[#1F2937] dark:text-white">
+                      <RotateCcw className="w-4 h-4 text-[#F97316]" />
+                      <span>{isAmharic ? 'የእቃ መመለስ እና ተመላሽ ጥያቄ' : 'ShopNest 7-Day Returns & Refunds'}</span>
+                    </div>
+                    <p className="text-xs text-[#6B7280] dark:text-gray-400">
+                      {isAmharic
+                        ? 'እቃው ከተረከቡበት ቀን ጀምሮ በ7 ቀናት ውስጥ የተበላሸ ወይም የተሳሳተ እቃ መመለስ እና ገንዘብ ማስመለስ ይችላሉ።'
+                        : 'Eligible orders can be returned within 7 days of delivery under Ethiopian consumer protection guidelines.'}
+                    </p>
+                  </div>
+
+                  {existingReturn ? (
+                    <div className="shrink-0">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${
+                          existingReturn.status === 'refunded'
+                            ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300'
+                            : existingReturn.status === 'approved'
+                            ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 border border-blue-300'
+                            : existingReturn.status === 'rejected'
+                            ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300'
+                            : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300'
+                        }`}
+                      >
+                        {existingReturn.status === 'refunded' && '💸 Refunded'}
+                        {existingReturn.status === 'approved' && '✅ Return Approved'}
+                        {existingReturn.status === 'rejected' && '❌ Return Declined'}
+                        {existingReturn.status === 'pending' && '⏳ Review in Progress'}
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowReturnModal(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>{isAmharic ? 'የመመለሻ ጥያቄ ያቅርቡ' : 'Request Return / Refund'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {existingReturn && (
+                  <div className="pt-2 border-t border-orange-200/60 dark:border-orange-900/40 text-xs text-[#4B5563] dark:text-gray-300 space-y-1">
+                    <p>
+                      <strong>Reason:</strong>{' '}
+                      <span className="capitalize">{existingReturn.reason.replace(/_/g, ' ')}</span>
+                      {existingReturn.customerNote && ` — "${existingReturn.customerNote}"`}
+                    </p>
+                    {existingReturn.status === 'refunded' && (
+                      <p className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                        Refund confirmed: ETB {formatETB(existingReturn.refundAmount || order.totalAmount || 0)} via{' '}
+                        {existingReturn.refundMethod?.toUpperCase()} (Ref: {existingReturn.refundReference})
+                      </p>
+                    )}
+                    {existingReturn.status === 'rejected' && existingReturn.rejectionReason && (
+                      <p className="text-rose-600 dark:text-rose-400">
+                        Admin Note: {existingReturn.rejectionReason}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Return Request Modal */}
+            {showReturnModal && (
+              <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-white dark:bg-[#111827] rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-gray-200 dark:border-gray-800">
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <RotateCcw className="w-5 h-5 text-[#F97316]" />
+                      <h3 className="font-bold text-sm sm:text-base text-[#1F2937] dark:text-white">
+                        {isAmharic ? 'የእቃ መመለስ ጥያቄ ማቅረቢያ' : 'Submit Return / Refund Request'}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowReturnModal(false);
+                        setReturnError('');
+                      }}
+                      className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {returnError && (
+                    <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-xs text-rose-700 dark:text-rose-300">
+                      {returnError}
+                    </div>
+                  )}
+
+                  {returnSuccessMsg && (
+                    <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 text-xs text-emerald-700 dark:text-emerald-300">
+                      {returnSuccessMsg}
+                    </div>
+                  )}
+
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      setReturnError('');
+                      setReturnSuccessMsg('');
+
+                      if (!isAuthenticated) {
+                        setReturnError('Please sign in to your ShopNest account to submit a return request.');
+                        return;
+                      }
+
+                      try {
+                        await createReturn({
+                          orderId: order._id || order.id,
+                          reason: returnReason,
+                          customerNote: returnNote.trim() || undefined,
+                          images: returnPhotos,
+                        }).unwrap();
+
+                        setReturnSuccessMsg('Your return request has been submitted successfully for admin review.');
+                        setTimeout(() => {
+                          setShowReturnModal(false);
+                          setReturnSuccessMsg('');
+                          setReturnNote('');
+                          setReturnPhotos([]);
+                        }, 2500);
+                      } catch (err: any) {
+                        setReturnError(err.data?.message || err.message || 'Failed to submit return request.');
+                      }
+                    }}
+                    className="space-y-4 text-xs"
+                  >
+                    <div>
+                      <label className="font-semibold text-[#1F2937] dark:text-gray-200 block mb-1">
+                        {isAmharic ? 'የመመለሻ ምክንያት *' : 'Reason for Return *'}
+                      </label>
+                      <select
+                        value={returnReason}
+                        onChange={(e) => setReturnReason(e.target.value as ReturnReason)}
+                        className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[#1F2937] dark:text-white"
+                      >
+                        <option value="damaged_item">
+                          {isAmharic ? 'እቃው ተጎድቶ/ተሰብሮ ደርሷል' : 'Damaged / Broken in transit'}
+                        </option>
+                        <option value="wrong_item">
+                          {isAmharic ? 'የተሳሳተ እቃ ቀረበልኝ' : 'Wrong item delivered'}
+                        </option>
+                        <option value="defective">
+                          {isAmharic ? 'እቃው አይሰራም / ጉድለት አለበት' : 'Defective / Malfunctioning'}
+                        </option>
+                        <option value="quality_issue">
+                          {isAmharic ? 'የጥራት ችግር' : 'Product quality issue'}
+                        </option>
+                        <option value="size_not_fitting">
+                          {isAmharic ? 'መጠኑ አልተስማማም' : 'Size / Specification mismatch'}
+                        </option>
+                        <option value="other">{isAmharic ? 'ሌላ ምክንያት' : 'Other reason'}</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-semibold text-[#1F2937] dark:text-gray-200 block mb-1">
+                        {isAmharic ? 'ተጨማሪ ማብራሪያ' : 'Customer Notes & Issue Details'}
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={returnNote}
+                        onChange={(e) => setReturnNote(e.target.value)}
+                        placeholder="Describe the issue with the item, package condition, or refund expectations..."
+                        className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[#1F2937] dark:text-white"
+                      />
+                    </div>
+
+                    {/* Supporting Photo Uploader (Max 3) */}
+                    <div>
+                      <label className="font-semibold text-[#1F2937] dark:text-gray-200 block mb-1">
+                        {isAmharic ? 'የእቃው ፎቶዎች (ቢበዛ 3)' : 'Supporting Photos (Max 3, up to 5MB each)'}
+                      </label>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {returnPhotos.map((photo, pIdx) => (
+                          <div key={pIdx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-300 dark:border-gray-700">
+                            <img src={photo} alt="Return Evidence" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setReturnPhotos(returnPhotos.filter((_, i) => i !== pIdx))}
+                              className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                        {returnPhotos.length < 3 && (
+                          <label className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-[#F97316] flex flex-col items-center justify-center cursor-pointer text-gray-400 hover:text-[#F97316] transition-colors">
+                            <Upload className="w-4 h-4" />
+                            <span className="text-[9px] mt-0.5">Add</span>
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                if (file.size > 5 * 1024 * 1024) {
+                                  alert('Photo exceeds maximum 5MB size limit.');
+                                  return;
+                                }
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                  if (typeof reader.result === 'string') {
+                                    setReturnPhotos([...returnPhotos, reader.result]);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 text-[11px] text-gray-600 dark:text-gray-400 flex items-start gap-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>
+                        Refunds are paid directly through your original Ethiopian payment method (Telebirr / CBE Birr / Chapa) once the returned item is received and inspected.
+                      </span>
+                    </div>
+
+                    <div className="pt-2 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowReturnModal(false)}
+                        className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-semibold"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSubmittingReturn}
+                        className="px-5 py-2 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white font-bold transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        {isSubmittingReturn ? 'Submitting...' : 'Submit Request'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : null}
