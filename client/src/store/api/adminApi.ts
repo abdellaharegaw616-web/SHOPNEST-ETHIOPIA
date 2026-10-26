@@ -132,6 +132,18 @@ export const adminApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ['Review', 'Product'],
     }),
+
+    moderateReviewAdmin: builder.mutation<
+      ApiResponse<any>,
+      { reviewId: string; status: 'approved' | 'rejected'; rejectionReason?: string }
+    >({
+      query: ({ reviewId, status, rejectionReason }) => ({
+        url: `/v1/reviews/${reviewId}/moderate`,
+        method: 'PATCH',
+        body: { status, rejectionReason },
+      }),
+      invalidatesTags: ['Review', 'Product'],
+    }),
   }),
 });
 
@@ -146,4 +158,5 @@ export const {
   useDeleteProductAdminMutation,
   useGetAdminReviewsQuery,
   useDeleteReviewAdminMutation,
+  useModerateReviewAdminMutation,
 } = adminApi;

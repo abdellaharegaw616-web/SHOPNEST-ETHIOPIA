@@ -40,11 +40,15 @@ export interface ReviewItem {
     _id?: string;
     id?: string;
     name: string;
+    avatar?: string;
   };
   product: string;
   rating: number;
+  title?: string;
   comment: string;
+  images?: string[];
   isVerifiedPurchase: boolean;
+  status?: 'pending' | 'approved' | 'rejected';
   createdAt: string;
 }
 
@@ -69,7 +73,18 @@ export interface ProductQueryParams {
 export interface CreateReviewPayload {
   productId: string;
   rating: number;
+  title?: string;
   comment: string;
+  images?: string[];
+}
+
+export interface UpdateReviewPayload {
+  id: string;
+  productId?: string;
+  rating?: number;
+  title?: string;
+  comment?: string;
+  images?: string[];
 }
 
 export const productsApi = apiSlice.injectEndpoints({
@@ -141,6 +156,14 @@ export const productsApi = apiSlice.injectEndpoints({
       providesTags: (_res, _err, id) => [{ type: 'Review', id }],
     }),
 
+    checkReviewEligibility: builder.query<
+      ApiResponse<{ canReview: boolean; hasPurchased: boolean; existingReview: ReviewItem | null; message?: string }>,
+      string
+    >({
+      query: (productId) => `/v1/reviews/eligibility/${productId}`,
+      providesTags: (_res, _err, id) => [{ type: 'Review', id: `ELIGIBLE_${id}` }],
+    }),
+
     createReview: builder.mutation<ApiResponse<ReviewItem>, CreateReviewPayload>({
       query: (payload) => ({
         url: '/v1/reviews',
@@ -149,7 +172,35 @@ export const productsApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: (_res, _err, arg) => [
         { type: 'Review', id: arg.productId },
+        { type: 'Review', id: `ELIGIBLE_${arg.productId}` },
         { type: 'Product', id: arg.productId },
+        { type: 'Product', id: 'LIST' },
+      ],
+    }),
+
+    updateReview: builder.mutation<ApiResponse<ReviewItem>, UpdateReviewPayload>({
+      query: ({ id, productId: _p, ...payload }) => ({
+        url: `/v1/reviews/${id}`,
+        method: 'PATCH',
+        body: payload,
+      }),
+      invalidatesTags: (_res, _err, arg) => [
+        { type: 'Review', id: arg.productId || 'LIST' },
+        { type: 'Review', id: `ELIGIBLE_${arg.productId || 'LIST'}` },
+        { type: 'Product', id: arg.productId || 'LIST' },
+        { type: 'Product', id: 'LIST' },
+      ],
+    }),
+
+    deleteReview: builder.mutation<ApiResponse<null>, { id: string; productId?: string }>({
+      query: ({ id }) => ({
+        url: `/v1/reviews/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_res, _err, arg) => [
+        { type: 'Review', id: arg.productId || 'LIST' },
+        { type: 'Review', id: `ELIGIBLE_${arg.productId || 'LIST'}` },
+        { type: 'Product', id: arg.productId || 'LIST' },
         { type: 'Product', id: 'LIST' },
       ],
     }),
@@ -165,5 +216,8 @@ export const {
   useGetNewArrivalsQuery,
   useGetBestSellersQuery,
   useGetProductReviewsQuery,
+  useCheckReviewEligibilityQuery,
   useCreateReviewMutation,
+  useUpdateReviewMutation,
+  useDeleteReviewMutation,
 } = productsApi;

@@ -30,6 +30,7 @@ import {
   Send,
   Radio,
   Activity,
+  Check,
 } from 'lucide-react';
 import { OrderRecord } from '../store/api/ordersApi';
 import {
@@ -43,6 +44,7 @@ import {
   useDeleteProductAdminMutation,
   useGetAdminReviewsQuery,
   useDeleteReviewAdminMutation,
+  useModerateReviewAdminMutation,
 } from '../store/api/adminApi';
 import {
   useGetProductsQuery,
@@ -142,6 +144,19 @@ export const AdminDashboardPage: React.FC = () => {
     skip: !isAuthenticated || user?.role !== 'admin',
   });
   const [deleteReviewAdmin] = useDeleteReviewAdminMutation();
+  const [moderateReviewAdmin] = useModerateReviewAdminMutation();
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [adminReviewImageModal, setAdminReviewImageModal] = useState<string | null>(null);
+
+  const handleModerateReview = async (reviewId: string, status: 'approved' | 'rejected') => {
+    try {
+      await moderateReviewAdmin({ reviewId, status }).unwrap();
+      setStatusMessage(`Review status successfully changed to "${status}".`);
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err: any) {
+      setStatusMessage(err?.data?.message || 'Failed to moderate review');
+    }
+  };
 
   // Notification Gateway Monitoring (Telegram Bot & SMS)
   const { data: gatewayStatusData, refetch: refetchGatewayStatus } = useGetNotificationGatewayStatusQuery(undefined, {
@@ -1961,12 +1976,26 @@ export const AdminDashboardPage: React.FC = () => {
               <div>
                 <h2 className="text-xl font-extrabold text-[#1F2937]">Customer Reviews Moderation</h2>
                 <p className="text-xs text-[#6B7280]">
-                  Inspect buyer feedback, audit ratings, and remove inappropriate content or spam.
+                  Inspect buyer feedback, audit ratings, review customer product photos, and moderate or delete submissions.
                 </p>
               </div>
-              <span className="text-xs text-[#6B7280] font-semibold">
-                Total Reviews: {reviews.length}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[#6B7280] font-semibold">Filter:</span>
+                {(['all', 'approved', 'pending', 'rejected'] as const).map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setReviewStatusFilter(st)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase transition-colors cursor-pointer ${
+                      reviewStatusFilter === st
+                        ? 'bg-[#F97316] text-white shadow-2xs'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {st}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -1976,64 +2005,158 @@ export const AdminDashboardPage: React.FC = () => {
                     <th className="py-3 font-bold">Product</th>
                     <th className="py-3 font-bold">Reviewer</th>
                     <th className="py-3 font-bold">Rating</th>
-                    <th className="py-3 font-bold">Feedback / Comment</th>
+                    <th className="py-3 font-bold">Feedback / Title</th>
+                    <th className="py-3 font-bold">Photos</th>
+                    <th className="py-3 font-bold">Status</th>
                     <th className="py-3 font-bold">Date</th>
-                    <th className="py-3 font-bold text-right">Actions</th>
+                    <th className="py-3 font-bold text-right">Moderation Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F3F4F6]">
-                  {reviews.length === 0 ? (
+                  {reviews
+                    .filter((rev: any) => reviewStatusFilter === 'all' || (rev.status || 'approved') === reviewStatusFilter)
+                    .length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-[#9CA3AF]">
-                        No customer reviews submitted yet.
+                      <td colSpan={8} className="py-8 text-center text-[#9CA3AF]">
+                        No customer reviews matching current filter.
                       </td>
                     </tr>
                   ) : (
-                    reviews.map((rev: any) => (
-                      <tr key={rev._id || rev.id} className="hover:bg-[#F9FAFB]">
-                        <td className="py-3 font-bold text-[#1F2937]">
-                          {rev.product?.title || 'Catalog Product'}
-                        </td>
-                        <td className="py-3">
-                          <span className="font-semibold text-[#1F2937] block">
-                            {rev.user?.name || 'Customer'}
-                          </span>
-                          <span className="text-[11px] text-[#6B7280]">{rev.user?.email}</span>
-                        </td>
-                        <td className="py-3">
-                          <div className="flex text-[#F97316]">
-                            {Array.from({ length: 5 }).map((_, idx) => (
-                              <Star
-                                key={idx}
-                                className={`w-3.5 h-3.5 ${
-                                  idx < rev.rating ? 'fill-[#F97316] text-[#F97316]' : 'text-gray-300'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </td>
-                        <td className="py-3 text-[#4B5563] max-w-xs">
-                          <p className="line-clamp-2">{rev.comment}</p>
-                        </td>
-                        <td className="py-3 text-[#9CA3AF]">
-                          {new Date(rev.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteReview(rev._id || rev.id)}
-                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 inline-flex items-center cursor-pointer"
-                            title="Delete review"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    reviews
+                      .filter((rev: any) => reviewStatusFilter === 'all' || (rev.status || 'approved') === reviewStatusFilter)
+                      .map((rev: any) => (
+                        <tr key={rev._id || rev.id} className="hover:bg-[#F9FAFB]">
+                          <td className="py-3 font-bold text-[#1F2937]">
+                            {rev.product?.title || 'Catalog Product'}
+                          </td>
+                          <td className="py-3">
+                            <span className="font-semibold text-[#1F2937] block">
+                              {rev.user?.name || 'Customer'}
+                            </span>
+                            <span className="text-[11px] text-[#6B7280]">{rev.user?.email}</span>
+                            {rev.isVerifiedPurchase && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded-full font-bold">
+                                ✓ Verified Buyer
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3">
+                            <div className="flex text-[#F97316]">
+                              {Array.from({ length: 5 }).map((_, idx) => (
+                                <Star
+                                  key={idx}
+                                  className={`w-3.5 h-3.5 ${
+                                    idx < rev.rating ? 'fill-[#F97316] text-[#F97316]' : 'text-gray-300'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </td>
+                          <td className="py-3 text-[#4B5563] max-w-xs">
+                            {rev.title && (
+                              <span className="font-bold text-[#1F2937] block truncate">
+                                {rev.title}
+                              </span>
+                            )}
+                            <p className="line-clamp-2">{rev.comment}</p>
+                          </td>
+                          <td className="py-3">
+                            {rev.images && rev.images.length > 0 ? (
+                              <div className="flex items-center gap-1.5">
+                                {rev.images.map((img: string, imgIdx: number) => (
+                                  <img
+                                    key={imgIdx}
+                                    src={img}
+                                    alt="Review thumbnail"
+                                    onClick={() => setAdminReviewImageModal(img)}
+                                    className="w-8 h-8 rounded-lg object-cover border border-gray-200 cursor-pointer hover:scale-110 transition-transform"
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-gray-400">None</span>
+                            )}
+                          </td>
+                          <td className="py-3">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                rev.status === 'rejected'
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : rev.status === 'pending'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-emerald-100 text-emerald-800'
+                              }`}
+                            >
+                              {rev.status || 'approved'}
+                            </span>
+                          </td>
+                          <td className="py-3 text-[#9CA3AF]">
+                            {new Date(rev.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 text-right">
+                            <div className="inline-flex items-center gap-1">
+                              {rev.status !== 'approved' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleModerateReview(rev._id || rev.id, 'approved')}
+                                  className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 inline-flex items-center cursor-pointer"
+                                  title="Approve review"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {rev.status !== 'rejected' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleModerateReview(rev._id || rev.id, 'rejected')}
+                                  className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 inline-flex items-center cursor-pointer"
+                                  title="Reject review"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteReview(rev._id || rev.id)}
+                                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 inline-flex items-center cursor-pointer"
+                                title="Delete review"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>
             </div>
+
+            {/* Admin Photo Preview Modal */}
+            {adminReviewImageModal && (
+              <div
+                className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-xs"
+                onClick={() => setAdminReviewImageModal(null)}
+              >
+                <div
+                  className="relative max-w-2xl max-h-[85vh] bg-transparent rounded-2xl overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setAdminReviewImageModal(null)}
+                    className="absolute top-3 right-3 p-1.5 rounded-full bg-black/70 hover:bg-black text-white cursor-pointer z-10"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                  <img
+                    src={adminReviewImageModal}
+                    alt="Customer review photo"
+                    className="w-full h-auto max-h-[80vh] object-contain rounded-2xl"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 

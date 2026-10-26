@@ -197,3 +197,28 @@ export type InventoryMovementType =
   | 'adjustment'
   | 'order_reservation';
 
+export type ReviewModerationStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ReviewDTO {
+  id: string;
+  _id?: string;
+  product: string | { id: string; _id?: string; title: string; slug: string; sku?: string };
+  user: string | { id: string; _id?: string; name: string; email?: string; avatar?: string };
+  rating: number;
+  title?: string;
+  comment: string;
+  images: string[];
+  isVerifiedPurchase: boolean;
+  status: ReviewModerationStatus;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReviewEligibilityDTO {
+  canReview: boolean;
+  hasPurchased: boolean;
+  existingReview?: ReviewDTO | null;
+  message?: string;
+}
+
