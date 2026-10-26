@@ -183,6 +183,113 @@ describe('Coupon Validation & Management Integration Tests', () => {
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
     });
+
+    it('validates a fixed ETB discount coupon accurately', async () => {
+      const mockCoupon = {
+        code: 'BIRR200',
+        discountType: 'fixed_amount',
+        discountValue: 200,
+        minOrderValue: 800,
+        expiryDate: new Date(Date.now() + 86400000),
+        usageLimit: 50,
+        usedCount: 5,
+        isActive: true,
+      };
+
+      vi.spyOn(Coupon, 'findOne').mockResolvedValue(mockCoupon as any);
+
+      const res = await request(app)
+        .post('/api/v1/coupons/validate')
+        .send({
+          code: 'BIRR200',
+          subtotal: 1000,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.discountAmount).toBe(200);
+      expect(res.body.data.newTotal).toBe(800);
+    });
+
+    it('rejects coupon when per-customer limit has been reached by the user', async () => {
+      const customerId = new mongoose.Types.ObjectId();
+      vi.spyOn(User, 'findById').mockResolvedValue({
+        _id: customerId,
+        name: 'Customer User',
+        email: 'customer@shopnest.et',
+        role: 'customer',
+      } as any);
+
+      const customerToken = jwt.sign(
+        { userId: customerId.toString(), email: 'customer@shopnest.et', role: 'customer' },
+        env.JWT_ACCESS_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      const mockCoupon = {
+        code: 'ONCEPERUSER',
+        discountType: 'percentage',
+        discountValue: 10,
+        minOrderValue: 500,
+        expiryDate: new Date(Date.now() + 86400000),
+        usageLimit: 100,
+        usedCount: 1,
+        perCustomerLimit: 1,
+        customerUsage: [{ user: customerId, usedAt: new Date() }],
+        isActive: true,
+      };
+
+      vi.spyOn(Coupon, 'findOne').mockResolvedValue(mockCoupon as any);
+
+      const res = await request(app)
+        .post('/api/v1/coupons/validate')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .send({
+          code: 'ONCEPERUSER',
+          subtotal: 1000,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toContain('maximum of 1 time(s)');
+    });
+
+    it('calculates discount only on eligible categories when restrictions are set', async () => {
+      const targetCatId = new mongoose.Types.ObjectId();
+      const mockCoupon = {
+        code: 'COFFEESPECIAL',
+        discountType: 'percentage',
+        discountValue: 20,
+        minOrderValue: 200,
+        expiryDate: new Date(Date.now() + 86400000),
+        usageLimit: 100,
+        usedCount: 0,
+        perCustomerLimit: 5,
+        eligibleCategories: [targetCatId],
+        eligibleProducts: [],
+        customerUsage: [],
+        isActive: true,
+      };
+
+      vi.spyOn(Coupon, 'findOne').mockResolvedValue(mockCoupon as any);
+
+      const res = await request(app)
+        .post('/api/v1/coupons/validate')
+        .send({
+          code: 'COFFEESPECIAL',
+          subtotal: 1500, // Total subtotal
+          items: [
+            { productId: 'prod-coffee', price: 500, quantity: 1, category: targetCatId.toString() },
+            { productId: 'prod-other', price: 1000, quantity: 1, category: 'other-cat' },
+          ],
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      // 20% on eligible 500 ETB coffee = 100 ETB discount
+      expect(res.body.data.discountAmount).toBe(100);
+      expect(res.body.data.newTotal).toBe(1400);
+    });
   });
 
   describe('Admin Coupon Endpoints (Protected)', () => {

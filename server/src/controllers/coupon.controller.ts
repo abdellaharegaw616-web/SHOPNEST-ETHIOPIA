@@ -8,8 +8,9 @@ export const validateCoupon = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { code, subtotal } = req.body;
-    const result = await CouponService.validateCoupon(code, subtotal);
+    const { code, subtotal, items } = req.body;
+    const userId = req.user?._id ? req.user._id.toString() : undefined;
+    const result = await CouponService.validateCoupon(code, subtotal, userId, items);
 
     res.status(200).json({
       success: true,

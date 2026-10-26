@@ -82,7 +82,15 @@ export const CartPage: React.FC = () => {
     if (!code) return;
 
     try {
-      const res = await validateCouponMutation({ code, subtotal }).unwrap();
+      const res = await validateCouponMutation({
+        code,
+        subtotal,
+        items: items.map((item: CartItem) => ({
+          product: item.productId,
+          price: item.discountPrice && item.discountPrice > 0 ? item.discountPrice : item.price,
+          quantity: item.quantity,
+        })),
+      }).unwrap();
       if (res.success && res.data) {
         dispatch(
           applyCoupon({
@@ -359,10 +367,16 @@ export const CartPage: React.FC = () => {
                 </span>
               </div>
 
-              {discountPercent > 0 && (
-                <div className="flex items-center justify-between text-[#EA580C] bg-[#FFF7ED] dark:bg-orange-950/40 p-2 rounded-xl border border-[#F97316]/20 dark:border-orange-500/30">
-                  <span>Discount ({couponCode} -{discountPercent}%)</span>
-                  <span className="font-extrabold">-ETB {formatETB(discountAmount)}</span>
+              {discountAmount > 0 && (
+                <div className="flex items-center justify-between text-[#EA580C] bg-[#FFF7ED] dark:bg-orange-950/40 p-2.5 rounded-xl border border-[#F97316]/20 dark:border-orange-500/30">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <Tag className="w-3.5 h-3.5 text-[#F97316]" />
+                    <span>
+                      Discount ({couponCode}
+                      {discountPercent > 0 ? ` -${discountPercent}%` : ` -ETB ${formatETB(discountAmount)}`})
+                    </span>
+                  </div>
+                  <span className="font-extrabold text-[#EA580C]">-ETB {formatETB(discountAmount)}</span>
                 </div>
               )}
 
@@ -380,12 +394,14 @@ export const CartPage: React.FC = () => {
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#FFF7ED] dark:bg-orange-950/40 border border-[#F97316]/30 text-xs">
                   <div className="flex items-center gap-1.5 text-[#EA580C] font-semibold">
                     <Tag className="w-3.5 h-3.5" />
-                    <span>Applied: {couponCode} (-{discountPercent}%)</span>
+                    <span>
+                      Applied: <strong>{couponCode}</strong> ({discountPercent > 0 ? `-${discountPercent}%` : `-ETB ${formatETB(discountAmount)}`})
+                    </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => dispatch(removeCoupon())}
-                    className="text-xs text-[#6B7280] dark:text-gray-400 hover:text-rose-600 font-medium"
+                    className="text-xs text-[#6B7280] dark:text-gray-400 hover:text-rose-600 font-medium cursor-pointer"
                   >
                     Remove
                   </button>

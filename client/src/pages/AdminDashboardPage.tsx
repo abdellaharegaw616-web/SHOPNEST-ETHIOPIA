@@ -110,6 +110,8 @@ export const AdminDashboardPage: React.FC = () => {
   const [maxDiscountInput, setMaxDiscountInput] = useState<number | undefined>(undefined);
   const [expiryDaysInput, setExpiryDaysInput] = useState<number>(30);
   const [usageLimitInput, setUsageLimitInput] = useState<number>(100);
+  const [perCustomerLimitInput, setPerCustomerLimitInput] = useState<number>(1);
+  const [selectedEligibleCategory, setSelectedEligibleCategory] = useState<string>('all');
   const [couponFormError, setCouponFormError] = useState('');
 
   // Product Management Hooks & State
@@ -1706,7 +1708,8 @@ export const AdminDashboardPage: React.FC = () => {
                     <th className="py-3 font-bold">Discount</th>
                     <th className="py-3 font-bold">Min Order</th>
                     <th className="py-3 font-bold">Max Cap</th>
-                    <th className="py-3 font-bold">Redemptions</th>
+                    <th className="py-3 font-bold">Total / Per-User Limit</th>
+                    <th className="py-3 font-bold">Category Restriction</th>
                     <th className="py-3 font-bold">Expires</th>
                     <th className="py-3 font-bold">Status</th>
                     <th className="py-3 font-bold text-right">Actions</th>
@@ -1715,7 +1718,7 @@ export const AdminDashboardPage: React.FC = () => {
                 <tbody className="divide-y divide-[#F3F4F6]">
                   {(!couponsData?.data || couponsData.data.length === 0) ? (
                     <tr>
-                      <td colSpan={8} className="py-8 text-center text-[#9CA3AF]">
+                      <td colSpan={9} className="py-8 text-center text-[#9CA3AF]">
                         No promotional coupons created yet. Click "Create New Coupon" to add one.
                       </td>
                     </tr>
@@ -1739,6 +1742,16 @@ export const AdminDashboardPage: React.FC = () => {
                         <td className="py-3 text-[#4B5563]">
                           <span className="font-semibold text-[#1F2937]">{cpn.usedCount ?? 0}</span>
                           <span className="text-[#9CA3AF]"> / {cpn.usageLimit ?? 100}</span>
+                          <span className="ml-1 text-[11px] text-[#F97316] font-medium">({cpn.perCustomerLimit ?? 1}/user)</span>
+                        </td>
+                        <td className="py-3 text-[#4B5563]">
+                          {cpn.eligibleCategories && cpn.eligibleCategories.length > 0 ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                              {cpn.eligibleCategories.join(', ')}
+                            </span>
+                          ) : (
+                            <span className="text-[#9CA3AF]">All Catalog</span>
+                          )}
                         </td>
                         <td className="py-3 text-[#6B7280]">
                           {new Date(cpn.expiryDate).toLocaleDateString()}
@@ -1843,6 +1856,8 @@ export const AdminDashboardPage: React.FC = () => {
                           maxDiscount: maxDiscountInput,
                           expiryDate: expiryDate.toISOString(),
                           usageLimit: usageLimitInput,
+                          perCustomerLimit: perCustomerLimitInput,
+                          eligibleCategories: selectedEligibleCategory !== 'all' ? [selectedEligibleCategory] : undefined,
                           isActive: true,
                         }).unwrap();
 
@@ -1924,6 +1939,35 @@ export const AdminDashboardPage: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
+                        <label className="font-semibold text-[#1F2937] block mb-1">Per-Customer Limit</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={perCustomerLimitInput}
+                          onChange={(e) => setPerCustomerLimitInput(Number(e.target.value))}
+                          className="w-full px-3 py-2 rounded-xl border border-[#E5E7EB] text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-semibold text-[#1F2937] block mb-1">Eligible Category</label>
+                        <select
+                          value={selectedEligibleCategory}
+                          onChange={(e) => setSelectedEligibleCategory(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-[#E5E7EB] text-xs"
+                        >
+                          <option value="all">All Store Categories</option>
+                          {categoriesData?.data?.map((cat: any) => (
+                            <option key={cat._id || cat.id} value={cat.slug || cat.name}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
                         <label className="font-semibold text-[#1F2937] block mb-1">Valid For (Days)</label>
                         <input
                           type="number"
@@ -1935,7 +1979,7 @@ export const AdminDashboardPage: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className="font-semibold text-[#1F2937] block mb-1">Max Usage Limit</label>
+                        <label className="font-semibold text-[#1F2937] block mb-1">Max Total Usage</label>
                         <input
                           type="number"
                           min={1}

@@ -1,7 +1,8 @@
-import { Order, IOrder, Cart, Product, Payment, Coupon, InventoryMovement, User } from '../models';
+import { Order, IOrder, Cart, Product, Payment, InventoryMovement, User } from '../models';
 import { EthiopianAddress, EthiopianPaymentProvider, OrderStatus, ETHIOPIA_CONSTANTS } from '@shopnest/shared';
 import { AppError } from '../middleware/errorHandler';
 import { Types } from 'mongoose';
+import { CouponService } from './coupon.service';
 import { NotificationService, OrderNotificationEvent } from './notification.service';
 import { logger } from '../utils/logger';
 
@@ -155,20 +156,27 @@ export class OrderService {
     let appliedCoupon: any = null;
 
     if (couponCode) {
-      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim() });
-      if (coupon && coupon.isValid() && subtotal >= coupon.minOrderValue) {
-        if (coupon.discountType === 'percentage') {
-          discountAmount = (subtotal * coupon.discountValue) / 100;
-          if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
-            discountAmount = coupon.maxDiscount;
-          }
-        } else {
-          discountAmount = coupon.discountValue;
-        }
+      try {
+        const couponItems = productRecords.map((p) => ({
+          productId: p.product._id ? p.product._id.toString() : p.product.toString(),
+          price: p.unitPrice,
+          quantity: p.quantity,
+          category: p.product.category ? p.product.category.toString() : undefined,
+        }));
 
-        appliedCoupon = coupon;
-        coupon.usedCount += 1;
-        await coupon.save();
+        const validation = await CouponService.validateCoupon(
+          couponCode,
+          subtotal,
+          userId,
+          couponItems
+        );
+        discountAmount = validation.discountAmount;
+        appliedCoupon = couponCode.toUpperCase().trim();
+      } catch (err: any) {
+        // If coupon requirements are not met or coupon expired, proceed without discount
+        logger.warn(`Coupon "${couponCode}" could not be applied: ${err.message}`);
+        discountAmount = 0;
+        appliedCoupon = null;
       }
     }
 
@@ -253,7 +261,7 @@ export class OrderService {
       subtotal,
       deliveryFee,
       discountAmount,
-      couponCode: appliedCoupon?.code,
+      couponCode: appliedCoupon,
       totalAmount,
       idempotencyKey,
       trackingHistory: [
@@ -264,6 +272,10 @@ export class OrderService {
         },
       ],
     });
+
+    if (appliedCoupon) {
+      await CouponService.recordUsage(appliedCoupon, userId, order._id.toString());
+    }
 
     const orderIdStr = order._id ? order._id.toString() : order.orderNumber;
     const orderObjectId = order._id || new Types.ObjectId();

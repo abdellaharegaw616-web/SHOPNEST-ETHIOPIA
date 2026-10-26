@@ -4,6 +4,17 @@ export const validateCouponSchema = z.object({
   body: z.object({
     code: z.string().trim().min(1, 'Coupon code is required'),
     subtotal: z.number().min(0, 'Subtotal must be a positive number'),
+    items: z
+      .array(
+        z.object({
+          product: z.string().optional(),
+          productId: z.string().optional(),
+          price: z.number().optional(),
+          quantity: z.number().int().optional(),
+          category: z.string().optional(),
+        })
+      )
+      .optional(),
   }),
 });
 
@@ -30,6 +41,9 @@ export const createCouponSchema = z.object({
         'Expiry date must be in the future'
       ),
     usageLimit: z.number().int().positive('Usage limit must be at least 1').default(100),
+    perCustomerLimit: z.number().int().positive('Per-customer limit must be at least 1').default(1),
+    eligibleCategories: z.array(z.string()).optional().default([]),
+    eligibleProducts: z.array(z.string()).optional().default([]),
     isActive: z.boolean().default(true),
   }),
 });

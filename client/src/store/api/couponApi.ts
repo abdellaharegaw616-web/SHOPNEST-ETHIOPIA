@@ -4,6 +4,13 @@ import { ApiResponse, ValidateCouponResultDTO, CouponDTO } from '@shopnest/share
 export interface ValidateCouponRequest {
   code: string;
   subtotal: number;
+  items?: Array<{
+    productId?: string;
+    product?: string;
+    price: number;
+    quantity: number;
+    category?: string;
+  }>;
 }
 
 export interface CreateCouponRequest {
@@ -14,6 +21,9 @@ export interface CreateCouponRequest {
   maxDiscount?: number;
   expiryDate: string;
   usageLimit?: number;
+  perCustomerLimit?: number;
+  eligibleCategories?: string[];
+  eligibleProducts?: string[];
   isActive?: boolean;
 }
 

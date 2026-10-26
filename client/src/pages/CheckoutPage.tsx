@@ -11,24 +11,31 @@ import {
   User as UserIcon,
   Check,
   Sparkles,
+  Tag,
   RefreshCw,
   XCircle,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { clearCart, CartItem } from '../store/slices/cartSlice';
+import { clearCart, applyCoupon, removeCoupon, CartItem } from '../store/slices/cartSlice';
 import {
   useCreateOrderMutation,
   useSimulatePaymentMutation,
   OrderRecord,
 } from '../store/api/ordersApi';
+import { useValidateCouponMutation } from '../store/api/couponApi';
 import { formatETB } from '../components/common/ProductPrice';
 import { ETHIOPIA_CONSTANTS, EthiopianPaymentProvider } from '@shopnest/shared';
 
 export const CheckoutPage: React.FC = () => {
   const dispatch = useAppDispatch();
 
-  const { items, couponCode, discountPercent } = useAppSelector((state) => state.cart);
+  const { items, couponCode, discountPercent, discountAmount: storedDiscountAmount } = useAppSelector((state) => state.cart);
   const { isAuthenticated, user } = useAppSelector((state) => state.auth);
+
+  // Coupon state within Checkout
+  const [checkoutCouponInput, setCheckoutCouponInput] = useState('');
+  const [checkoutCouponError, setCheckoutCouponError] = useState('');
+  const [validateCouponMutation, { isLoading: isValidatingCoupon }] = useValidateCouponMutation();
 
   // Generate a unique idempotency key for this checkout form session
   const [idempotencyKey] = useState<string>(() => `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`);
@@ -119,8 +126,47 @@ export const CheckoutPage: React.FC = () => {
       ? 0
       : standardFee;
 
-  const discountAmount = discountPercent > 0 ? (subtotal * discountPercent) / 100 : 0;
+  const discountAmount = storedDiscountAmount > 0
+    ? storedDiscountAmount
+    : discountPercent > 0
+    ? (subtotal * discountPercent) / 100
+    : 0;
   const estimatedTotal = Math.max(0, subtotal - discountAmount + deliveryFee);
+
+  const handleApplyCheckoutCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCheckoutCouponError('');
+    const code = checkoutCouponInput.trim().toUpperCase();
+    if (!code) return;
+
+    try {
+      const res = await validateCouponMutation({
+        code,
+        subtotal,
+        items: items.map((item: CartItem) => ({
+          product: item.productId,
+          price: item.discountPrice && item.discountPrice > 0 ? item.discountPrice : item.price,
+          quantity: item.quantity,
+        })),
+      }).unwrap();
+      if (res.success && res.data) {
+        dispatch(
+          applyCoupon({
+            code: res.data.code,
+            discountPercent: res.data.discountType === 'percentage' ? res.data.discountValue : 0,
+            discountAmount: res.data.discountAmount,
+          })
+        );
+        setCheckoutCouponInput('');
+      } else {
+        setCheckoutCouponError(res.message || 'Invalid coupon code');
+      }
+    } catch (err: any) {
+      setCheckoutCouponError(
+        err.data?.message || err.message || 'Invalid or expired coupon code. Check requirements.'
+      );
+    }
+  };
 
   // Submit Order
   const handlePlaceOrder = async (e: React.FormEvent) => {
@@ -869,12 +915,60 @@ export const CheckoutPage: React.FC = () => {
                 </span>
               </div>
 
-              {discountPercent > 0 && (
-                <div className="flex justify-between text-[#EA580C] bg-[#FFF7ED] dark:bg-orange-950/40 p-2 rounded-xl border border-[#F97316]/20 dark:border-orange-500/30">
-                  <span>Coupon Discount ({couponCode})</span>
-                  <span className="font-bold">-ETB {formatETB(discountAmount)}</span>
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center text-[#EA580C] bg-[#FFF7ED] dark:bg-orange-950/40 p-2.5 rounded-xl border border-[#F97316]/20 dark:border-orange-500/30">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <Tag className="w-3.5 h-3.5 text-[#F97316]" />
+                    <span>
+                      Coupon ({couponCode}
+                      {discountPercent > 0 ? ` -${discountPercent}%` : ''})
+                    </span>
+                  </div>
+                  <span className="font-extrabold">-ETB {formatETB(discountAmount)}</span>
                 </div>
               )}
+
+              {/* Coupon input / badge in checkout */}
+              <div className="pt-1">
+                {couponCode ? (
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-orange-50/60 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/40 text-[11px]">
+                    <div className="flex items-center gap-1.5 text-[#EA580C] font-semibold">
+                      <Tag className="w-3 h-3" />
+                      <span>{couponCode} applied</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => dispatch(removeCoupon())}
+                      className="text-[11px] text-[#6B7280] dark:text-gray-400 hover:text-rose-600 font-semibold cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="Promo code (e.g. WELCOME10)"
+                        value={checkoutCouponInput}
+                        onChange={(e) => setCheckoutCouponInput(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-[#F9FAFB] dark:bg-gray-800 border border-[#E5E7EB] dark:border-gray-700 text-xs text-[#1F2937] dark:text-white uppercase focus:outline-hidden focus:border-[#F97316]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCheckoutCoupon}
+                        disabled={isValidatingCoupon}
+                        className="px-3 py-1.5 rounded-lg bg-[#1F2937] dark:bg-gray-700 hover:bg-black dark:hover:bg-gray-600 text-white text-xs font-semibold shrink-0 cursor-pointer disabled:opacity-50"
+                      >
+                        {isValidatingCoupon ? '...' : 'Apply'}
+                      </button>
+                    </div>
+                    {checkoutCouponError && (
+                      <p className="text-[10px] text-rose-600 font-medium">{checkoutCouponError}</p>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="flex justify-between text-base font-black text-[#1F2937] dark:text-white border-t border-[#F3F4F6] dark:border-gray-800 pt-2">
                 <span>Final Total to Pay</span>

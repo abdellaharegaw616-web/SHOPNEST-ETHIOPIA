@@ -73,6 +73,12 @@ export interface PaymentDTO {
 
 export type DiscountType = 'percentage' | 'fixed_amount';
 
+export interface CouponCustomerUsageDTO {
+  user: string;
+  orderId?: string;
+  usedAt: string;
+}
+
 export interface CouponDTO {
   id?: string;
   _id?: string;
@@ -84,6 +90,10 @@ export interface CouponDTO {
   expiryDate: string;
   usageLimit?: number;
   usedCount?: number;
+  perCustomerLimit?: number;
+  eligibleCategories?: string[];
+  eligibleProducts?: string[];
+  customerUsage?: CouponCustomerUsageDTO[];
   isActive?: boolean;
   createdAt?: string;
 }
@@ -95,6 +105,8 @@ export interface ValidateCouponResultDTO {
   discountAmount: number;
   minOrderValue: number;
   maxDiscount?: number;
+  perCustomerLimit?: number;
+  eligibleSubtotal?: number;
   subtotal: number;
   newTotal: number;
   message: string;
