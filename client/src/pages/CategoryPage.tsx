@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Tag, PackageSearch, LayoutGrid, Sparkles, ChevronRight, Laptop, Smartphone, Shirt, Coffee, Home, Sparkle, BookOpen } from 'lucide-react';
+import { ArrowLeft, Tag, PackageSearch, LayoutGrid, Sparkles, ChevronRight, Laptop, Smartphone, Shirt, Coffee, Home, Sparkle, BookOpen, Trophy } from 'lucide-react';
 import { useGetProductsQuery, useGetCategoriesQuery } from '../store/api/productsApi';
 import { ProductCard } from '../components/common/ProductCard';
 
@@ -87,6 +87,15 @@ const DEFAULT_CATEGORIES: DefaultCategoryMeta[] = [
     descriptionAmharic: 'የአማርኛ እና የእንግሊዝኛ መጽሐፍት፣ ኖትቡኮች እና የቢሮ እቃዎች።',
     icon: <BookOpen className="w-5 h-5 text-[#F97316]" />,
     image: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=600&auto=format&fit=crop&q=80',
+  },
+  {
+    slug: 'sports-outdoors',
+    name: 'Sports & Outdoors',
+    nameAmharic: 'ስፖርት እና የውጪ እንቅስቃሴ',
+    description: 'High-altitude marathon running shoes, hydration vests, dumbbells, and camping tents.',
+    descriptionAmharic: 'የሩጫ ጫማዎች፣ የስፖርት ውሃ መያዣዎች፣ ዳምብሎች እና የጉዞ ድንኳኖች።',
+    icon: <Trophy className="w-5 h-5 text-[#F97316]" />,
+    image: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=600&auto=format&fit=crop&q=80',
   },
 ];
 

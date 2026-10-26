@@ -68,6 +68,7 @@ export const Header: React.FC = () => {
     { slug: 'beauty-personal-care', label: isAmharic ? 'የውበት እና የንፅህና' : 'Beauty & Personal Care' },
     { slug: 'groceries-essentials', label: isAmharic ? 'ልዩ የኢትዮጵያ ቡና' : 'Ethiopian Specialty Coffee' },
     { slug: 'books-stationery', label: isAmharic ? 'መጽሐፍት' : 'Books & Stationery' },
+    { slug: 'sports-outdoors', label: isAmharic ? 'ስፖርት እና የውጪ እንቅስቃሴ' : 'Sports & Outdoors' },
   ];
 
   return (
