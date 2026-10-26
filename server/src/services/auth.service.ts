@@ -14,6 +14,13 @@ export const toUserDTO = (user: IUser): UserDTO => {
     avatar: user.avatar || '',
     addresses: user.addresses,
     isVerified: user.isVerified,
+    notificationPreferences: user.notificationPreferences || {
+      telegramEnabled: true,
+      smsEnabled: true,
+      telegramChatId: '',
+      orderUpdates: true,
+      promotions: false,
+    },
     createdAt: user.createdAt.toISOString(),
   };
 };

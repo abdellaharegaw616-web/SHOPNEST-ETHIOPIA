@@ -13,6 +13,11 @@ import {
   Plus,
   Camera,
   UploadCloud,
+  Bell,
+  Send,
+  MessageSquare,
+  AlertCircle,
+  Check,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { logout, updateUser } from '../store/slices/authSlice';
@@ -20,6 +25,9 @@ import {
   useLogoutUserMutation,
   useSaveAddressMutation,
   useUpdateProfileMutation,
+  useGetNotificationPreferencesQuery,
+  useUpdateNotificationPreferencesMutation,
+  useSendTestNotificationMutation,
 } from '../store/api/authApi';
 import { useGetUserOrdersQuery, OrderRecord } from '../store/api/ordersApi';
 import { formatETB } from '../components/common/ProductPrice';
@@ -80,6 +88,70 @@ export const AccountPage: React.FC = () => {
   const [newWoreda, setNewWoreda] = useState('03');
   const [newLandmark, setNewLandmark] = useState('');
   const [addressSavedNotice, setAddressSavedNotice] = useState<string | null>(null);
+
+  // Notification Preferences State (Telegram Bot & SMS)
+  const { data: notifData } = useGetNotificationPreferencesQuery(undefined, { skip: !isAuthenticated });
+  const [updateNotificationPrefs, { isLoading: isSavingNotifs }] = useUpdateNotificationPreferencesMutation();
+  const [sendTestNotification, { isLoading: isSendingTestNotif }] = useSendTestNotificationMutation();
+
+  const [telegramEnabled, setTelegramEnabled] = useState(true);
+  const [smsEnabled, setSmsEnabled] = useState(true);
+  const [telegramChatId, setTelegramChatId] = useState('');
+  const [orderUpdates, setOrderUpdates] = useState(true);
+  const [promotions, setPromotions] = useState(false);
+  const [notifSavedNotice, setNotifSavedNotice] = useState<string | null>(null);
+  const [testNotifNotice, setTestNotifNotice] = useState<{ success: boolean; message: string } | null>(null);
+
+  React.useEffect(() => {
+    if (notifData?.data) {
+      setTelegramEnabled(notifData.data.telegramEnabled ?? true);
+      setSmsEnabled(notifData.data.smsEnabled ?? true);
+      setTelegramChatId(notifData.data.telegramChatId || '');
+      setOrderUpdates(notifData.data.orderUpdates ?? true);
+      setPromotions(notifData.data.promotions ?? false);
+    }
+  }, [notifData]);
+
+  const handleSaveNotificationPrefs = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNotifSavedNotice(null);
+    try {
+      await updateNotificationPrefs({
+        telegramEnabled,
+        smsEnabled,
+        telegramChatId: telegramChatId.trim(),
+        orderUpdates,
+        promotions,
+      }).unwrap();
+      setNotifSavedNotice('Notification preferences saved successfully!');
+      setTimeout(() => setNotifSavedNotice(null), 3500);
+    } catch (err: any) {
+      setNotifSavedNotice(err.data?.message || 'Failed to save notification preferences');
+    }
+  };
+
+  const handleTriggerTestNotification = async (channel: 'telegram' | 'sms' | 'both') => {
+    setTestNotifNotice(null);
+    try {
+      const res = await sendTestNotification({
+        channel,
+        chatId: telegramChatId.trim() || undefined,
+        phone: user?.phone,
+      }).unwrap();
+      const tgStatus = channel !== 'sms' ? (res.data?.telegramSuccess ? 'Telegram Sent' : 'Telegram Skipped (check Bot Token/Chat ID)') : '';
+      const smsStatus = channel !== 'telegram' ? (res.data?.smsSuccess ? 'SMS Sent (Mocked/Live)' : 'SMS Skipped') : '';
+      setTestNotifNotice({
+        success: true,
+        message: `Test alert dispatched: ${[tgStatus, smsStatus].filter(Boolean).join(' • ')}`,
+      });
+      setTimeout(() => setTestNotifNotice(null), 5000);
+    } catch (err: any) {
+      setTestNotifNotice({
+        success: false,
+        message: err.data?.message || 'Failed to send test alert',
+      });
+    }
+  };
 
   const orders = ordersResponse?.data || [];
 
@@ -720,6 +792,171 @@ export const AccountPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Notification Preferences Card (Telegram Bot & SMS Gateway) */}
+              <div className="pt-6 border-t border-[#F3F4F6] dark:border-gray-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-[#FFF7ED] dark:bg-orange-950/40 text-[#F97316] flex items-center justify-center">
+                      <Bell className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-[#1F2937] dark:text-white">
+                        Order Alerts & Telegram Bot / የቴሌግራም እና የኤስኤምኤስ ማሳወቂያዎች
+                      </h4>
+                      <p className="text-xs text-[#6B7280] dark:text-gray-400">
+                        Get instant order confirmation, payment receipt, and live shipping updates.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {notifSavedNotice && (
+                  <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{notifSavedNotice}</span>
+                  </div>
+                )}
+
+                {testNotifNotice && (
+                  <div
+                    className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+                      testNotifNotice.success
+                        ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+                        : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300'
+                    }`}
+                  >
+                    {testNotifNotice.success ? (
+                      <Check className="w-4 h-4 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                    )}
+                    <span>{testNotifNotice.message}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveNotificationPrefs} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Telegram Toggle & Chat ID */}
+                    <div className="p-4 rounded-2xl bg-[#F9FAFB] dark:bg-gray-900/50 border border-[#E5E7EB] dark:border-gray-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Send className="w-4 h-4 text-sky-500" />
+                          <span className="text-xs font-bold text-[#1F2937] dark:text-white">
+                            Telegram Notifications
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={telegramEnabled}
+                            onChange={(e) => setTelegramEnabled(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-hidden rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#F97316]"></div>
+                        </label>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold text-[#4B5563] dark:text-gray-300 block">
+                          Telegram Chat ID (የቴሌግራም መለያ ቁጥር)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 123456789"
+                          value={telegramChatId}
+                          onChange={(e) => setTelegramChatId(e.target.value)}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-gray-800 border border-[#E5E7EB] dark:border-gray-700 text-[#1F2937] dark:text-white placeholder:text-gray-400"
+                        />
+                        <p className="text-[10px] text-[#6B7280] dark:text-gray-400">
+                          To get your Chat ID: Open Telegram, search for <b>@userinfobot</b>, tap Start, and copy the number labeled "Id".
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* SMS Gateway Toggle */}
+                    <div className="p-4 rounded-2xl bg-[#F9FAFB] dark:bg-gray-900/50 border border-[#E5E7EB] dark:border-gray-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4 text-emerald-500" />
+                          <span className="text-xs font-bold text-[#1F2937] dark:text-white">
+                            SMS Text Messages
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={smsEnabled}
+                            onChange={(e) => setSmsEnabled(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-hidden rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#F97316]"></div>
+                        </label>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold text-[#4B5563] dark:text-gray-300 block">
+                          Dispatched To Phone
+                        </label>
+                        <div className="px-3 py-2 text-xs rounded-xl bg-white dark:bg-gray-800 border border-[#E5E7EB] dark:border-gray-700 font-mono text-[#1F2937] dark:text-white">
+                          {user?.phone || 'No phone set in profile'}
+                        </div>
+                        <p className="text-[10px] text-[#6B7280] dark:text-gray-400">
+                          Standard Ethiopian telecom numbers (Ethio Telecom 09... and Safaricom 07...).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Channel Preferences Toggles */}
+                  <div className="p-3.5 rounded-xl bg-[#F9FAFB] dark:bg-gray-900/50 border border-[#E5E7EB] dark:border-gray-800 flex flex-wrap items-center justify-between gap-4 text-xs">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={orderUpdates}
+                        onChange={(e) => setOrderUpdates(e.target.checked)}
+                        className="rounded text-[#F97316] focus:ring-[#F97316]"
+                      />
+                      <span className="font-semibold text-[#1F2937] dark:text-white">
+                        Order Lifecycle & Shipping Updates (የትዕዛዝ ሁኔታ ማሳወቂያዎች)
+                      </span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={promotions}
+                        onChange={(e) => setPromotions(e.target.checked)}
+                        className="rounded text-[#F97316] focus:ring-[#F97316]"
+                      />
+                      <span className="font-semibold text-[#1F2937] dark:text-white">
+                        Special ETB Promo Discounts (የቅናሽ ኩፖን ማሳወቂያዎች)
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSavingNotifs}
+                      className="px-4 py-2 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white font-bold text-xs cursor-pointer shadow-xs disabled:opacity-50"
+                    >
+                      {isSavingNotifs ? 'Saving...' : 'Save Notification Preferences'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleTriggerTestNotification('both')}
+                      disabled={isSendingTestNotif}
+                      className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-[#1F2937] dark:text-gray-200 font-semibold text-xs cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Bell className="w-3.5 h-3.5 text-[#F97316]" />
+                      <span>{isSendingTestNotif ? 'Sending Test...' : 'Send Test Notification'}</span>
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}

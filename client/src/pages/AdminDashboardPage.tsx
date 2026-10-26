@@ -26,6 +26,10 @@ import {
   Phone,
   Truck,
   Clock,
+  Bell,
+  Send,
+  Radio,
+  Activity,
 } from 'lucide-react';
 import { OrderRecord } from '../store/api/ordersApi';
 import {
@@ -51,6 +55,10 @@ import {
   useToggleCouponActiveMutation,
   useDeleteCouponMutation,
 } from '../store/api/couponApi';
+import {
+  useGetNotificationGatewayStatusQuery,
+  useSendTestNotificationMutation,
+} from '../store/api/authApi';
 import { useAppSelector } from '../store/hooks';
 import { formatETB } from '../components/common/ProductPrice';
 import { OrderStatus, CouponDTO } from '@shopnest/shared';
@@ -134,6 +142,25 @@ export const AdminDashboardPage: React.FC = () => {
     skip: !isAuthenticated || user?.role !== 'admin',
   });
   const [deleteReviewAdmin] = useDeleteReviewAdminMutation();
+
+  // Notification Gateway Monitoring (Telegram Bot & SMS)
+  const { data: gatewayStatusData, refetch: refetchGatewayStatus } = useGetNotificationGatewayStatusQuery(undefined, {
+    skip: !isAuthenticated || user?.role !== 'admin',
+  });
+  const [sendTestNotificationAdmin, { isLoading: isAdminTestingNotif }] = useSendTestNotificationMutation();
+  const [adminNotifFeedback, setAdminNotifFeedback] = useState<string | null>(null);
+
+  const handleAdminTestAlert = async () => {
+    setAdminNotifFeedback(null);
+    try {
+      const res = await sendTestNotificationAdmin({ channel: 'both' }).unwrap();
+      setAdminNotifFeedback(`Test alert dispatched! Telegram: ${res.data?.telegramSuccess ? 'OK' : 'Not configured'}, SMS: ${res.data?.smsSuccess ? 'OK' : 'Failed'}`);
+      refetchGatewayStatus();
+      setTimeout(() => setAdminNotifFeedback(null), 5000);
+    } catch (err: any) {
+      setAdminNotifFeedback(err.data?.message || 'Failed to trigger test notification');
+    }
+  };
 
   if (!isAuthenticated || user?.role !== 'admin') {
     return (
@@ -2012,24 +2039,168 @@ export const AdminDashboardPage: React.FC = () => {
 
         {/* TAB 6: SETTINGS */}
         {activeTab === 'settings' && (
-          <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-2xs space-y-4">
-            <h2 className="text-xl font-extrabold text-[#1F2937]">Store Configuration & Policies</h2>
-            <div className="space-y-3 text-xs text-[#4B5563]">
-              <div className="flex justify-between p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
-                <span className="font-semibold text-[#1F2937]">Default Currency</span>
-                <span className="font-bold text-[#F97316]">ETB (Ethiopian Birr / የኢትዮጵያ ብር)</span>
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-2xs space-y-4">
+              <h2 className="text-xl font-extrabold text-[#1F2937]">Store Configuration & Policies</h2>
+              <div className="space-y-3 text-xs text-[#4B5563]">
+                <div className="flex justify-between p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
+                  <span className="font-semibold text-[#1F2937]">Default Currency</span>
+                  <span className="font-bold text-[#F97316]">ETB (Ethiopian Birr / የኢትዮጵያ ብር)</span>
+                </div>
+                <div className="flex justify-between p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
+                  <span className="font-semibold text-[#1F2937]">Addis Ababa Delivery Standard Fee</span>
+                  <span className="font-bold">ETB 150.00</span>
+                </div>
+                <div className="flex justify-between p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
+                  <span className="font-semibold text-[#1F2937]">Regional Delivery Standard Fee</span>
+                  <span className="font-bold">ETB 250.00</span>
+                </div>
+                <div className="flex justify-between p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
+                  <span className="font-semibold text-[#1F2937]">Free Door-to-Door Delivery Threshold</span>
+                  <span className="font-bold text-emerald-600">ETB 2,500.00</span>
+                </div>
               </div>
-              <div className="flex justify-between p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
-                <span className="font-semibold text-[#1F2937]">Addis Ababa Delivery Standard Fee</span>
-                <span className="font-bold">ETB 150.00</span>
+            </div>
+
+            {/* Feature 1: Notification Gateway Status Panel */}
+            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-2xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#F3F4F6] pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#FFF7ED] text-[#F97316] flex items-center justify-center">
+                    <Radio className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-base text-[#1F2937]">
+                      Notification Gateways (Telegram Bot + Ethiopian SMS)
+                    </h3>
+                    <p className="text-xs text-[#6B7280]">
+                      Real-time delivery confirmation, order status updates, and customer SMS broadcast status
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAdminTestAlert}
+                    disabled={isAdminTestingNotif}
+                    className="px-4 py-2 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white font-bold text-xs cursor-pointer inline-flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{isAdminTestingNotif ? 'Sending Test...' : 'Send Live Test Alert'}</span>
+                  </button>
+                </div>
               </div>
-              <div className="flex justify-between p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
-                <span className="font-semibold text-[#1F2937]">Regional Delivery Standard Fee</span>
-                <span className="font-bold">ETB 250.00</span>
+
+              {adminNotifFeedback && (
+                <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-700 flex items-center gap-2">
+                  <Activity className="w-4 h-4 shrink-0" />
+                  <span>{adminNotifFeedback}</span>
+                </div>
+              )}
+
+              {/* Status Badges */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-[#1F2937] flex items-center gap-1.5">
+                      <Send className="w-3.5 h-3.5 text-sky-500" />
+                      Telegram Bot Gateway
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        gatewayStatusData?.data?.telegram?.configured
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {gatewayStatusData?.data?.telegram?.configured ? 'Active / Configured' : 'Env Token Pending (Fallback Graceful)'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#6B7280]">
+                    Token: {gatewayStatusData?.data?.telegram?.configured ? '••••••••' : 'TELEGRAM_BOT_TOKEN not provided'} | Default Chat: {gatewayStatusData?.data?.telegram?.defaultChatIdConfigured ? 'Set' : 'Uses user chat IDs'}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-[#1F2937] flex items-center gap-1.5">
+                      <Bell className="w-3.5 h-3.5 text-emerald-500" />
+                      SMS Provider Gateway
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase">
+                      {gatewayStatusData?.data?.sms?.provider || 'mock'} Mode Active
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#6B7280]">
+                    Sender ID: <span className="font-mono">{gatewayStatusData?.data?.sms?.senderId || 'ShopNestET'}</span> | Targets: +251 9... / +251 7...
+                  </p>
+                </div>
               </div>
-              <div className="flex justify-between p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
-                <span className="font-semibold text-[#1F2937]">Free Door-to-Door Delivery Threshold</span>
-                <span className="font-bold text-emerald-600">ETB 2,500.00</span>
+
+              {/* Live Dispatch Audit Log */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#1F2937] uppercase tracking-wider">
+                    Recent Dispatched Notification Logs ({gatewayStatusData?.data?.recentLogs?.length || 0})
+                  </h4>
+                  <span className="text-[11px] text-[#6B7280]">Updated in real time</span>
+                </div>
+
+                <div className="overflow-x-auto border border-[#E5E7EB] rounded-xl">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#F9FAFB] text-[#6B7280] border-b border-[#E5E7EB]">
+                      <tr>
+                        <th className="py-2.5 px-3 font-semibold">Channel</th>
+                        <th className="py-2.5 px-3 font-semibold">Recipient</th>
+                        <th className="py-2.5 px-3 font-semibold">Event</th>
+                        <th className="py-2.5 px-3 font-semibold">Status</th>
+                        <th className="py-2.5 px-3 font-semibold">Timestamp</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#F3F4F6]">
+                      {!gatewayStatusData?.data?.recentLogs || gatewayStatusData.data.recentLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-6 text-center text-[#9CA3AF]">
+                            No notifications dispatched yet. Click "Send Live Test Alert" above or place an order.
+                          </td>
+                        </tr>
+                      ) : (
+                        gatewayStatusData.data.recentLogs.map((log: any) => (
+                          <tr key={log.id} className="hover:bg-[#F9FAFB]">
+                            <td className="py-2 px-3 font-bold uppercase text-[11px]">
+                              {log.channel === 'telegram' ? '✈️ Telegram' : '💬 SMS'}
+                            </td>
+                            <td className="py-2 px-3 font-mono text-[11px] text-[#1F2937]">
+                              {log.recipient}
+                            </td>
+                            <td className="py-2 px-3 text-[#4B5563]">
+                              <span className="px-2 py-0.5 rounded-md bg-gray-100 font-mono text-[10px]">
+                                {log.event}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  log.status === 'sent'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : log.status === 'mocked'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                {log.status}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-[#6B7280] text-[11px]">
+                              {new Date(log.timestamp).toLocaleTimeString()}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

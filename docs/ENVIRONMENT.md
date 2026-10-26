@@ -15,6 +15,12 @@ ShopNest Ethiopia enforces runtime schema validation using **Zod** for both fron
 | `JWT_SECRET` | `string (min 16 chars)` | `dev_secret_key_shopnest_ethiopia_2026_secure` | Yes | Cryptographic secret used for signing JWT tokens. |
 | `JWT_EXPIRES_IN` | `string` | `7d` | No | JWT token validity lifespan. |
 | `LOG_LEVEL` | `'debug' \| 'info' \| 'warn' \| 'error'` | `'info'` | No | Minimum severity level recorded by structured logger. |
+| `TELEGRAM_BOT_TOKEN` | `string` | `''` | No | Bot token from `@BotFather` for order notifications. Gracefully skips if omitted. |
+| `TELEGRAM_DEFAULT_CHAT_ID` | `string` | `''` | No | Admin Telegram chat ID for store notifications. |
+| `SMS_PROVIDER` | `'mock' \| 'africastalking' \| 'twilio' \| 'generic_http'` | `'mock'` | No | SMS gateway provider for OTP and order updates. |
+| `SMS_API_KEY` | `string` | `''` | If provider != mock | API authentication key for SMS provider. |
+| `SMS_SENDER_ID` | `string` | `'ShopNestET'` | No | Registered alphanumeric SMS sender ID. |
+| `SMS_API_URL` | `string` | `''` | If provider = generic_http | Custom HTTP SMS gateway endpoint (e.g. Ethio Telecom). |
 
 ---
 

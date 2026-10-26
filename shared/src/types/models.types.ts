@@ -15,6 +15,14 @@ export interface EthiopianAddress {
   isDefault?: boolean;
 }
 
+export interface NotificationPreferencesDTO {
+  telegramEnabled: boolean;
+  smsEnabled: boolean;
+  telegramChatId?: string;
+  orderUpdates: boolean;
+  promotions: boolean;
+}
+
 export interface UserDTO {
   id: string;
   name: string;
@@ -24,6 +32,7 @@ export interface UserDTO {
   avatar?: string;
   addresses: EthiopianAddress[];
   isVerified: boolean;
+  notificationPreferences?: NotificationPreferencesDTO;
   createdAt: string;
 }
 

@@ -19,6 +19,13 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   COOKIE_SECRET: z.string().min(16).default('dev_cookie_signing_secret_shopnest_2026'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  // Telegram Bot & SMS Notification Configuration
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_DEFAULT_CHAT_ID: z.string().optional(),
+  SMS_PROVIDER: z.enum(['mock', 'africastalking', 'twilio', 'generic_http']).default('mock'),
+  SMS_API_KEY: z.string().optional(),
+  SMS_SENDER_ID: z.string().default('ShopNestET'),
+  SMS_API_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

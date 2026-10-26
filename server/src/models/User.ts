@@ -14,6 +14,13 @@ export interface IUser extends mongoose.Document {
   avatar?: string;
   addresses: IUserAddress[];
   isVerified: boolean;
+  notificationPreferences?: {
+    telegramEnabled: boolean;
+    smsEnabled: boolean;
+    telegramChatId?: string;
+    orderUpdates: boolean;
+    promotions: boolean;
+  };
   passwordResetToken?: string;
   passwordResetExpires?: Date;
   createdAt: Date;
@@ -83,6 +90,13 @@ const UserSchema = new mongoose.Schema<IUser>(
     isVerified: {
       type: Boolean,
       default: false,
+    },
+    notificationPreferences: {
+      telegramEnabled: { type: Boolean, default: true },
+      smsEnabled: { type: Boolean, default: true },
+      telegramChatId: { type: String, default: '' },
+      orderUpdates: { type: Boolean, default: true },
+      promotions: { type: Boolean, default: false },
     },
     passwordResetToken: {
       type: String,

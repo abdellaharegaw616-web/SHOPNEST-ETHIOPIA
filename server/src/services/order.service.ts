@@ -2,6 +2,8 @@ import { Order, IOrder, Cart, Product, Payment, Coupon, InventoryMovement, User 
 import { EthiopianAddress, EthiopianPaymentProvider, OrderStatus, ETHIOPIA_CONSTANTS } from '@shopnest/shared';
 import { AppError } from '../middleware/errorHandler';
 import { Types } from 'mongoose';
+import { NotificationService, OrderNotificationEvent } from './notification.service';
+import { logger } from '../utils/logger';
 
 export interface CreateOrderItemInput {
   productId: string;
@@ -303,6 +305,20 @@ export class OrderService {
       }
     }
 
+    // 11. Async Telegram Bot & SMS Notification Dispatch
+    try {
+      const recipientPromise = userId ? User.findById(userId) : Promise.resolve(null);
+      recipientPromise
+        .then((recipientUser) => {
+          NotificationService.sendOrderNotification('order_placed', order, recipientUser).catch((e) =>
+            logger.warn(`Order placement notification failed: ${e.message}`)
+          );
+        })
+        .catch(() => {});
+    } catch (e: any) {
+      logger.warn(`Notification dispatch error on order creation: ${e.message}`);
+    }
+
     return order;
   }
 
@@ -351,6 +367,30 @@ export class OrderService {
     }
 
     await order.save();
+
+    // Async Telegram Bot & SMS Notification Dispatch on status change
+    try {
+      const recipientPromise = order.user ? User.findById(order.user) : Promise.resolve(null);
+      recipientPromise
+        .then((recipientUser) => {
+          const eventMap: Record<string, OrderNotificationEvent> = {
+            shipped: 'order_shipped',
+            delivered: 'order_delivered',
+            cancelled: 'order_cancelled',
+            processing: 'payment_confirmed',
+          };
+          const notifEvent = eventMap[status];
+          if (notifEvent) {
+            NotificationService.sendOrderNotification(notifEvent, order, recipientUser).catch((e) =>
+              logger.warn(`Order status update notification failed: ${e.message}`)
+            );
+          }
+        })
+        .catch(() => {});
+    } catch (e: any) {
+      logger.warn(`Notification dispatch error on status update: ${e.message}`);
+    }
+
     return order;
   }
 
@@ -414,6 +454,21 @@ export class OrderService {
     });
 
     await order.save();
+
+    // Async Telegram Bot & SMS Notification Dispatch on cancellation
+    try {
+      const recipientPromise = order.user ? User.findById(order.user) : Promise.resolve(null);
+      recipientPromise
+        .then((recipientUser) => {
+          NotificationService.sendOrderNotification('order_cancelled', order, recipientUser).catch((e) =>
+            logger.warn(`Order cancellation notification failed: ${e.message}`)
+          );
+        })
+        .catch(() => {});
+    } catch (e: any) {
+      logger.warn(`Notification dispatch error on order cancellation: ${e.message}`);
+    }
+
     return order;
   }
 }

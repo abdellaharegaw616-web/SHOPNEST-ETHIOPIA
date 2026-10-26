@@ -1,5 +1,5 @@
 import { apiSlice } from './apiSlice';
-import { ApiResponse, AuthResponseData, UserDTO, EthiopianAddress } from '@shopnest/shared';
+import { ApiResponse, AuthResponseData, UserDTO, EthiopianAddress, NotificationPreferencesDTO } from '@shopnest/shared';
 
 export interface LoginRequest {
   emailOrPhone: string;
@@ -11,6 +11,21 @@ export interface RegisterRequest {
   email: string;
   phone: string;
   password: string;
+}
+
+export interface NotificationStatusResponse {
+  telegram: { configured: boolean; defaultChatIdConfigured: boolean };
+  sms: { provider: string; configured: boolean; senderId: string };
+  recentLogs: Array<{
+    id: string;
+    channel: 'telegram' | 'sms';
+    recipient: string;
+    event: string;
+    content: string;
+    status: 'sent' | 'failed' | 'mocked';
+    timestamp: string;
+    error?: string;
+  }>;
 }
 
 export const authApi = apiSlice.injectEndpoints({
@@ -63,6 +78,37 @@ export const authApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ['User'],
     }),
+
+    getNotificationPreferences: builder.query<ApiResponse<NotificationPreferencesDTO>, void>({
+      query: () => '/v1/notifications/preferences',
+      providesTags: ['Notification'],
+    }),
+
+    updateNotificationPreferences: builder.mutation<ApiResponse<NotificationPreferencesDTO>, Partial<NotificationPreferencesDTO>>({
+      query: (prefs) => ({
+        url: '/v1/notifications/preferences',
+        method: 'PUT',
+        body: prefs,
+      }),
+      invalidatesTags: ['Notification', 'User'],
+    }),
+
+    sendTestNotification: builder.mutation<
+      ApiResponse<{ telegramSuccess: boolean; smsSuccess: boolean; recentLogs?: any[] }>,
+      { channel?: 'telegram' | 'sms' | 'both'; chatId?: string; phone?: string }
+    >({
+      query: (body) => ({
+        url: '/v1/notifications/test',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Notification'],
+    }),
+
+    getNotificationGatewayStatus: builder.query<ApiResponse<NotificationStatusResponse>, void>({
+      query: () => '/v1/notifications/status',
+      providesTags: ['Notification'],
+    }),
   }),
 });
 
@@ -73,4 +119,9 @@ export const {
   useGetCurrentUserQuery,
   useSaveAddressMutation,
   useUpdateProfileMutation,
+  useGetNotificationPreferencesQuery,
+  useUpdateNotificationPreferencesMutation,
+  useSendTestNotificationMutation,
+  useGetNotificationGatewayStatusQuery,
 } = authApi;
+
