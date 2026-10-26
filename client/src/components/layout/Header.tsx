@@ -216,7 +216,7 @@ export const Header: React.FC = () => {
                       )}
                     </div>
                     <span className="hidden xl:inline text-xs font-bold">
-                      {user?.name?.split(' ')[0] || t('nav.account')}
+                      {user?.name || t('nav.account')}
                     </span>
                     <ChevronDown className="w-3 h-3 text-[#6B7280] hidden xl:inline" />
                   </Link>

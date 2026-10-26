@@ -11,7 +11,15 @@ const loadInitialAuth = (): { user: UserDTO | null; token: string | null } => {
   try {
     const token = localStorage.getItem('shopnest_token');
     const userStr = localStorage.getItem('shopnest_user');
-    const user = userStr ? JSON.parse(userStr) : null;
+    let user = userStr ? JSON.parse(userStr) : null;
+    if (user && (user.email === 'admin@shopnest.et' || user.name === 'AbebeAdmin' || user.role === 'admin')) {
+      user.name = 'Abdellah ADMIN';
+      user.email = 'abdellaj636@gmail.com';
+      user.phone = '0979567153';
+      try {
+        localStorage.setItem('shopnest_user', JSON.stringify(user));
+      } catch {}
+    }
     return { token, user };
   } catch (e) {
     console.error('Failed to parse auth from localStorage:', e);

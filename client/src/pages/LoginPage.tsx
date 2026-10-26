@@ -138,7 +138,7 @@ export const LoginPage: React.FC = () => {
               onClick={() => handleQuickFill('abdellaj636@gmail.com', 'AdminSecure2026!')}
               className="p-2 rounded-xl bg-[#F9FAFB] dark:bg-gray-800/80 hover:bg-[#FFF7ED] dark:hover:bg-gray-750 border border-[#E5E7EB] dark:border-gray-700 text-left text-[#1F2937] dark:text-white transition-colors cursor-pointer"
             >
-              <span className="font-bold block">Demo Admin (Abdellah)</span>
+              <span className="font-bold block">Demo Admin (Abdellah ADMIN)</span>
               <span className="text-[#6B7280] dark:text-gray-400">abdellaj636@gmail.com</span>
             </button>
           </div>

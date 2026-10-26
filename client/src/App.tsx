@@ -33,11 +33,29 @@ import {
   TermsPage,
 } from './pages/PoliciesPages';
 import { AccessDeniedPage } from './pages/AccessDeniedPage';
+import { useAppDispatch, useAppSelector } from './store/hooks';
+import { useGetCurrentUserQuery } from './store/api/authApi';
+import { updateUser } from './store/slices/authSlice';
+
+const AuthSynchronizer: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const token = useAppSelector((state) => state.auth.token);
+  const { data: meResponse } = useGetCurrentUserQuery(undefined, { skip: !token });
+
+  React.useEffect(() => {
+    if (meResponse?.data) {
+      dispatch(updateUser(meResponse.data));
+    }
+  }, [meResponse, dispatch]);
+
+  return null;
+};
 
 export const App: React.FC = () => {
   return (
     <ThemeProvider>
       <BrowserRouter>
+        <AuthSynchronizer />
         <ScrollToTop />
         <div className="flex flex-col min-h-screen bg-[#F9FAFB] dark:bg-[#0B0F19] text-[#1F2937] dark:text-gray-100 pb-16 md:pb-0 transition-colors duration-200">
           <AnnouncementBar />

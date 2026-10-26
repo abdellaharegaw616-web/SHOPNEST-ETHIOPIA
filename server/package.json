@@ -12,7 +12,8 @@
     "type-check": "tsc --noEmit",
     "seed": "tsx src/scripts/seed.ts",
     "seed:clean": "tsx src/scripts/seed.ts --clean",
-    "provision-admin": "tsx src/scripts/provision-admin.ts"
+    "provision-admin": "tsx src/scripts/provision-admin.ts",
+    "sync-admin": "tsx src/scripts/sync-admin.ts"
   },
   "dependencies": {
     "@shopnest/shared": "*",

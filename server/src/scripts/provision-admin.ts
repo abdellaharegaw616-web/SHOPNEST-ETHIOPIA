@@ -51,13 +51,13 @@ export const provisionAdmin = async (params: AdminProvisionParams = {}): Promise
     params.name ||
     getArg('name') ||
     process.env.ADMIN_NAME ||
-    'Abdellah';
+    'Abdellah ADMIN';
 
   const phone =
     params.phone ||
     getArg('phone') ||
     process.env.ADMIN_PHONE ||
-    '+251979567153';
+    '0979567153';
 
   if (!email || !password) {
     logger.error('Missing required administrator credentials.');
