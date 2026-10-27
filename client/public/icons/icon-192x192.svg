@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB923C"/>
+      <stop offset="100%" stop-color="#EA580C"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#7C2D12" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Background with rounded corners -->
+  <rect width="192" height="192" rx="42" fill="url(#brandGrad)"/>
+  
+  <!-- Ethiopian Tricolor subtle accent stripe -->
+  <g opacity="0.9" transform="translate(36, 154)">
+    <rect x="0" y="0" width="40" height="4" rx="2" fill="#10B981" />
+    <rect x="40" y="0" width="40" height="4" rx="2" fill="#FBBF24" />
+    <rect x="80" y="0" width="40" height="4" rx="2" fill="#EF4444" />
+  </g>
+
+  <!-- Central Nest & Shopping Bag Icon -->
+  <g filter="url(#shadow)" transform="translate(40, 36)">
+    <!-- Bag Handle -->
+    <path d="M 36 34 C 36 18, 76 18, 76 34" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+    <!-- Bag Body with Nest curve -->
+    <path d="M 18 34 L 94 34 L 86 94 C 86 100, 80 106, 72 106 L 40 106 C 32 106, 26 100, 26 94 Z" fill="#FFFFFF"/>
+    <!-- Heart / Diamond accent representing Ethiopia's heart -->
+    <path d="M 56 54 L 63 65 L 56 76 L 49 65 Z" fill="#F97316"/>
+    <!-- Nest weaves -->
+    <path d="M 32 86 Q 56 94 80 86" fill="none" stroke="#F97316" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

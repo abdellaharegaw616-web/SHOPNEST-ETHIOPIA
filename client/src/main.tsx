@@ -5,6 +5,10 @@ import { store } from './store';
 import App from './App';
 import './index.css';
 import './i18n/config';
+import { registerServiceWorker } from './pwa/registerServiceWorker';
+
+// Register PWA service worker with secure cache management
+registerServiceWorker();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

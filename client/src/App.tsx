@@ -7,6 +7,7 @@ import { ScrollToTop } from './components/common/ScrollToTop';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ThemeProvider } from './context/ThemeContext';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
+import { PwaInstallBanner } from './components/common/PwaInstallBanner';
 
 // Storefront Pages
 import { HomePage } from './pages/HomePage';
@@ -58,6 +59,7 @@ export const App: React.FC = () => {
         <AuthSynchronizer />
         <ScrollToTop />
         <div className="flex flex-col min-h-screen bg-[#F9FAFB] dark:bg-[#0B0F19] text-[#1F2937] dark:text-gray-100 pb-16 md:pb-0 transition-colors duration-200">
+          <PwaInstallBanner />
           <AnnouncementBar />
           <Header />
           <main className="flex-1">
