@@ -15,7 +15,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(16).default('dev_secret_key_shopnest_ethiopia_2026_secure'),
   JWT_ACCESS_SECRET: z.string().min(16).default('dev_jwt_access_secret_shopnest_ethiopia_32_chars_min'),
   JWT_REFRESH_SECRET: z.string().min(16).default('dev_jwt_refresh_secret_shopnest_ethiopia_32_chars_min'),
-  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+  JWT_ACCESS_EXPIRES_IN: z.string().default('24h'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   COOKIE_SECRET: z.string().min(16).default('dev_cookie_signing_secret_shopnest_2026'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),

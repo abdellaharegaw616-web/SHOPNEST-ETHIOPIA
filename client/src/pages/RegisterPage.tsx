@@ -91,6 +91,7 @@ export const RegisterPage: React.FC = () => {
           setCredentials({
             user: response.data.user,
             token: response.data.tokens.accessToken,
+            refreshToken: response.data.tokens.refreshToken,
           })
         );
         navigate('/account');

@@ -23,7 +23,7 @@ export const register = async (
     // Set secure HTTP-only cookies
     res.cookie('shopnest_access_token', result.tokens.accessToken, {
       ...COOKIE_OPTIONS,
-      maxAge: 15 * 60 * 1000, // 15 mins
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
     res.cookie('shopnest_refresh_token', result.tokens.refreshToken, {
       ...COOKIE_OPTIONS,
@@ -54,7 +54,7 @@ export const login = async (
 
     res.cookie('shopnest_access_token', result.tokens.accessToken, {
       ...COOKIE_OPTIONS,
-      maxAge: 15 * 60 * 1000,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
     res.cookie('shopnest_refresh_token', result.tokens.refreshToken, {
       ...COOKIE_OPTIONS,
@@ -95,7 +95,7 @@ export const refreshToken = async (
 
     res.cookie('shopnest_access_token', result.tokens.accessToken, {
       ...COOKIE_OPTIONS,
-      maxAge: 15 * 60 * 1000,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
     res.cookie('shopnest_refresh_token', result.tokens.refreshToken, {
       ...COOKIE_OPTIONS,

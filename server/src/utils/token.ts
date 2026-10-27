@@ -23,7 +23,7 @@ export const generateAccessToken = (user: IUser): string => {
   };
 
   return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
-    expiresIn: '15m',
+    expiresIn: (env.JWT_ACCESS_EXPIRES_IN || '24h') as any,
   });
 };
 
@@ -54,7 +54,7 @@ export const generateTokens = async (
   return {
     accessToken,
     refreshToken: rawRefreshToken,
-    expiresIn: 15 * 60, // 900 seconds
+    expiresIn: 24 * 60 * 60, // 24 hours (86,400 seconds)
   };
 };
 
@@ -120,7 +120,7 @@ export const rotateRefreshToken = async (
     tokens: {
       accessToken,
       refreshToken: rawNewRefreshToken,
-      expiresIn: 15 * 60,
+      expiresIn: 24 * 60 * 60,
     },
   };
 };

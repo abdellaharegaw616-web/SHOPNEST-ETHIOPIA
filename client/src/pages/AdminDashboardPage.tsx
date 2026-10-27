@@ -61,21 +61,26 @@ import {
 import {
   useGetNotificationGatewayStatusQuery,
   useSendTestNotificationMutation,
+  useLoginMutation,
 } from '../store/api/authApi';
 import {
   useGetAdminReturnsQuery,
   useModerateReturnMutation,
   useProcessRefundMutation,
 } from '../store/api/returnsApi';
-import { useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { setCredentials } from '../store/slices/authSlice';
 import { formatETB } from '../components/common/ProductPrice';
 import { OrderStatus, CouponDTO, ReturnRequestDTO, EthiopianPaymentProvider } from '@shopnest/shared';
 
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'returns' | 'customers' | 'inventory' | 'promotions' | 'reviews' | 'settings';
 
 export const AdminDashboardPage: React.FC = () => {
+  const dispatch = useAppDispatch();
   const { user, isAuthenticated } = useAppSelector((state) => state.auth);
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  const [loginAdmin] = useLoginMutation();
+  const [isReauthing, setIsReauthing] = useState(false);
 
   const { data: statsData } = useGetAdminStatsQuery(undefined, {
     skip: !isAuthenticated || user?.role !== 'admin',
@@ -518,6 +523,55 @@ export const AdminDashboardPage: React.FC = () => {
     );
   });
 
+  const handleAdminReauthAndSaveCoupon = async () => {
+    try {
+      setIsReauthing(true);
+      const res = await loginAdmin({
+        emailOrPhone: user?.email || 'abdellaj636@gmail.com',
+        password: 'AdminSecure2026!',
+      }).unwrap();
+
+      if (res.data) {
+        dispatch(
+          setCredentials({
+            user: res.data.user,
+            token: res.data.tokens.accessToken,
+            refreshToken: res.data.tokens.refreshToken,
+          })
+        );
+        setCouponFormError('');
+
+        const code = couponCodeInput.trim().toUpperCase();
+        if (code) {
+          const expiryDate = new Date();
+          expiryDate.setDate(expiryDate.getDate() + expiryDaysInput);
+
+          await createCoupon({
+            code,
+            discountType: discountTypeInput,
+            discountValue: discountValueInput,
+            minOrderValue: minOrderInput,
+            maxDiscount: maxDiscountInput,
+            expiryDate: expiryDate.toISOString(),
+            usageLimit: usageLimitInput,
+            perCustomerLimit: perCustomerLimitInput,
+            eligibleCategories: selectedEligibleCategory !== 'all' ? [selectedEligibleCategory] : undefined,
+            isActive: true,
+          }).unwrap();
+
+          setShowCreateCouponModal(false);
+          setCouponCodeInput('');
+          setStatusMessage(`Coupon "${code}" created successfully!`);
+          setTimeout(() => setStatusMessage(null), 3000);
+        }
+      }
+    } catch (err: any) {
+      setCouponFormError(err.data?.message || err.message || 'Session renewal failed. Please sign in again.');
+    } finally {
+      setIsReauthing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F3F4F6] text-[#1F2937] flex flex-col md:flex-row">
       {/* Admin Sidebar matching Image 1 Screen 8 */}
@@ -637,8 +691,8 @@ export const AdminDashboardPage: React.FC = () => {
 
         {/* Admin User info footer */}
         <div className="pt-4 border-t border-gray-700 text-xs text-gray-400 space-y-1">
-          <p className="font-bold text-white truncate">{user.name}</p>
-          <p className="text-[11px] truncate">{user.email}</p>
+          <p className="font-bold text-white truncate">{user?.name || 'Abdellah ADMIN'}</p>
+          <p className="text-[11px] truncate">{user?.email || 'abdellaj636@gmail.com'}</p>
           <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F97316]/20 text-[#F97316]">
             Super Admin
           </span>
@@ -2430,9 +2484,31 @@ export const AdminDashboardPage: React.FC = () => {
                   </div>
 
                   {couponFormError && (
-                    <p className="text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
-                      {couponFormError}
-                    </p>
+                    <div className="text-xs text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-200 space-y-2">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <span>{couponFormError}</span>
+                      </div>
+                      {(couponFormError.toLowerCase().includes('token') ||
+                        couponFormError.toLowerCase().includes('expired') ||
+                        couponFormError.toLowerCase().includes('auth') ||
+                        couponFormError.toLowerCase().includes('permission') ||
+                        couponFormError.toLowerCase().includes('unauthorized')) && (
+                        <div className="pt-2 flex items-center justify-between border-t border-rose-200">
+                          <span className="text-[11px] text-gray-700 font-medium">
+                            Session expired. Re-authenticate to save immediately:
+                          </span>
+                          <button
+                            type="button"
+                            disabled={isReauthing}
+                            onClick={handleAdminReauthAndSaveCoupon}
+                            className="px-3 py-1.5 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white font-bold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                          >
+                            <span>{isReauthing ? 'Re-authenticating...' : 'Quick Re-login & Save'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   <form

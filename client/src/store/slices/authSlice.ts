@@ -4,12 +4,14 @@ import { UserDTO } from '@shopnest/shared';
 interface AuthState {
   user: UserDTO | null;
   token: string | null;
+  refreshToken: string | null;
   isAuthenticated: boolean;
 }
 
-const loadInitialAuth = (): { user: UserDTO | null; token: string | null } => {
+const loadInitialAuth = (): { user: UserDTO | null; token: string | null; refreshToken: string | null } => {
   try {
     const token = localStorage.getItem('shopnest_token');
+    const refreshToken = localStorage.getItem('shopnest_refresh_token');
     const userStr = localStorage.getItem('shopnest_user');
     let user = userStr ? JSON.parse(userStr) : null;
     if (user && (user.email === 'admin@shopnest.et' || user.name === 'AbebeAdmin' || user.role === 'admin')) {
@@ -20,10 +22,10 @@ const loadInitialAuth = (): { user: UserDTO | null; token: string | null } => {
         localStorage.setItem('shopnest_user', JSON.stringify(user));
       } catch {}
     }
-    return { token, user };
+    return { token, refreshToken, user };
   } catch (e) {
     console.error('Failed to parse auth from localStorage:', e);
-    return { token: null, user: null };
+    return { token: null, refreshToken: null, user: null };
   }
 };
 
@@ -32,6 +34,7 @@ const initialAuth = loadInitialAuth();
 const initialState: AuthState = {
   user: initialAuth.user,
   token: initialAuth.token,
+  refreshToken: initialAuth.refreshToken,
   isAuthenticated: !!initialAuth.token,
 };
 
@@ -41,13 +44,19 @@ export const authSlice = createSlice({
   reducers: {
     setCredentials: (
       state,
-      action: PayloadAction<{ user: UserDTO; token: string }>
+      action: PayloadAction<{ user: UserDTO; token: string; refreshToken?: string | null }>
     ) => {
       state.user = action.payload.user;
       state.token = action.payload.token;
+      if (action.payload.refreshToken !== undefined) {
+        state.refreshToken = action.payload.refreshToken;
+      }
       state.isAuthenticated = true;
       try {
         localStorage.setItem('shopnest_token', action.payload.token);
+        if (action.payload.refreshToken) {
+          localStorage.setItem('shopnest_refresh_token', action.payload.refreshToken);
+        }
         localStorage.setItem('shopnest_user', JSON.stringify(action.payload.user));
       } catch (e) {
         console.error('Failed to save auth to localStorage:', e);
@@ -64,9 +73,11 @@ export const authSlice = createSlice({
     logout: (state) => {
       state.user = null;
       state.token = null;
+      state.refreshToken = null;
       state.isAuthenticated = false;
       try {
         localStorage.removeItem('shopnest_token');
+        localStorage.removeItem('shopnest_refresh_token');
         localStorage.removeItem('shopnest_user');
       } catch (e) {
         console.error('Failed to remove auth from localStorage:', e);
