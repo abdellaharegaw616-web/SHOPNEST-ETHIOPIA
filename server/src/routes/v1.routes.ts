@@ -12,6 +12,7 @@ import couponRoutes from './coupon.routes';
 import notificationRoutes from './notification.routes';
 import { returnRoutes } from './return.routes';
 import healthRoutes from './health.routes';
+import aiRoutes from './ai.routes';
 
 const router = Router();
 
@@ -29,5 +30,6 @@ router.use('/returns', returnRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/admin', adminRoutes);
 router.use('/health', healthRoutes);
+router.use('/ai', aiRoutes);
 
 export default router;

@@ -1,4 +1,5 @@
 import rateLimit from 'express-rate-limit';
+import { env } from '../config/env';
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -25,3 +26,17 @@ export const apiLimiter = rateLimit({
     timestamp: new Date().toISOString(),
   },
 });
+
+export const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: env.AI_RATE_LIMIT_MAX || 30, // Limit each IP to configurable quota
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'AI Shopping Assistant request limit exceeded. Please wait a few moments before trying again.',
+    statusCode: 429,
+    timestamp: new Date().toISOString(),
+  },
+});
+

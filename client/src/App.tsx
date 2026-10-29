@@ -8,6 +8,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ThemeProvider } from './context/ThemeContext';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { PwaInstallBanner } from './components/common/PwaInstallBanner';
+import { ShoppingAssistant } from './features/ai/ShoppingAssistant';
 
 // Storefront Pages
 import { HomePage } from './pages/HomePage';
@@ -106,6 +107,7 @@ export const App: React.FC = () => {
               </Routes>
             </ErrorBoundary>
           </main>
+          <ShoppingAssistant />
           <Footer />
           <MobileBottomNav />
         </div>

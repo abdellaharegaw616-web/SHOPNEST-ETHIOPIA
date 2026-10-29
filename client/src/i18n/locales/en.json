@@ -120,5 +120,33 @@
     "paymentPartners": "Supported Payments",
     "terms": "Terms of Service",
     "privacy": "Privacy Policy"
+  },
+  "aiAssistant": {
+    "fabLabel": "ShopNest AI Assistant",
+    "fabTooltip": "Ask ShopNest AI",
+    "title": "ShopNest AI Shopping Assistant",
+    "slogan": "Your Marketplace, Your Way.",
+    "welcomeMessage": "Hello! I am your ShopNest shopping assistant. I can help you find products, compare prices, and explore our verified Ethiopian catalog in English or Amharic.",
+    "inputPlaceholder": "Ask: \"Find a laptop under 40,000 ETB\" or \"Show phones below 15,000 birr\"...",
+    "send": "Send",
+    "thinking": "Consulting genuine catalog...",
+    "clearChat": "Clear conversation",
+    "minimize": "Minimize assistant",
+    "retry": "Retry",
+    "mockBadge": "Development Simulation Mode",
+    "whyRecommended": "Why this matches:",
+    "inStock": "In Stock",
+    "outOfStock": "Out of Stock",
+    "viewProduct": "View Product",
+    "emptyState": "No products in our database matched this exact query.",
+    "errorMessage": "Unable to process your request at this time. Please check your connection and retry.",
+    "suggestedTitle": "Try asking:",
+    "charLimit": "{{count}}/500",
+    "suggestedQuestions": [
+      "Find a laptop under 40,000 ETB",
+      "Show me available phones below 15,000 birr",
+      "Which products are suitable for a university student?",
+      "Authentic Ethiopian coffee and traditional sets"
+    ]
   }
 }

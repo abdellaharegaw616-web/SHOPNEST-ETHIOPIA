@@ -26,6 +26,20 @@ const envSchema = z.object({
   SMS_API_KEY: z.string().optional(),
   SMS_SENDER_ID: z.string().default('ShopNestET'),
   SMS_API_URL: z.string().optional(),
+  // AI Shopping Assistant Configuration
+  AI_PROVIDER: z.enum(['mock', 'gemini', 'openai']).default('mock'),
+  AI_API_KEY: z.string().optional(),
+  AI_MODEL: z.string().default('gemini-1.5-flash'),
+  AI_MOCK_MODE: z
+    .preprocess((val) => {
+      if (typeof val === 'string') return val.toLowerCase() === 'true';
+      if (typeof val === 'boolean') return val;
+      return true;
+    }, z.boolean())
+    .default(true),
+  AI_REQUEST_TIMEOUT_MS: z.coerce.number().default(15000),
+  AI_MAX_OUTPUT_TOKENS: z.coerce.number().default(1000),
+  AI_RATE_LIMIT_MAX: z.coerce.number().default(30),
 });
 
 const parsed = envSchema.safeParse(process.env);

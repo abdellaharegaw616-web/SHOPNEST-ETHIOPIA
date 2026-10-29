@@ -37,9 +37,55 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+@layer base {
+  /* Default form controls to crisp light styling in light mode */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+  select,
+  textarea {
+    background-color: #FFFFFF;
+    color: #111827;
+    border-color: #E5E7EB;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #9CA3AF;
+  }
+
+  /* Default form controls to high-contrast dark styling in dark mode */
+  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+  .dark select,
+  .dark textarea {
+    background-color: #1F2937;
+    color: #F9FAFB;
+    border-color: #374151;
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: #9CA3AF;
+  }
+
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    background-color: #F3F4F6 !important;
+    color: #6B7280 !important;
+    cursor: not-allowed;
+  }
+
+  .dark input:disabled,
+  .dark select:disabled,
+  .dark textarea:disabled {
+    background-color: #111827 !important;
+    color: #9CA3AF !important;
+    cursor: not-allowed;
+  }
+}
+
 /* Custom interactive transitions and focus outlines */
 .focus-ring {
-  @apply focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:ring-offset-1 focus:ring-offset-white;
+  @apply focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:ring-offset-1 focus:ring-offset-white dark:focus:ring-offset-gray-900;
 }
 
 /* Subtle clean scrollbar */
@@ -50,10 +96,19 @@ body {
 ::-webkit-scrollbar-track {
   background: #F9FAFB;
 }
+.dark ::-webkit-scrollbar-track {
+  background: #111827;
+}
 ::-webkit-scrollbar-thumb {
   background: #D1D5DB;
   border-radius: 9999px;
 }
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151;
+}
 ::-webkit-scrollbar-thumb:hover {
   background: #9CA3AF;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4B5563;
 }
