@@ -44,10 +44,11 @@ async function run() {
         isDefault: true,
       }];
     } else {
-      shopnestAdmin.addresses[0].fullName = 'Abdellah ADMIN';
-      shopnestAdmin.addresses[0].phone = '0979567153';
-      shopnestAdmin.addresses[0].subCity = 'Bole';
-      shopnestAdmin.addresses[0].landmark = 'Africa Avenue, Bole Sub-City, Addis Ababa, Ethiopia';
+      const addr = shopnestAdmin.addresses[0] as any;
+      addr.fullName = 'Abdellah ADMIN';
+      addr.phone = '0979567153';
+      addr.subCity = 'Bole';
+      addr.landmark = 'Africa Avenue, Bole Sub-City, Addis Ababa, Ethiopia';
     }
     await shopnestAdmin.save();
     logger.info('✅ Successfully consolidated original admin session to abdellaj636@gmail.com, Abdellah ADMIN, 0979567153!');

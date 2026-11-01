@@ -68,20 +68,37 @@ graph LR
 ## 4. Backend Deployment: Render / Railway / Docker
 
 ### Option A: Render Web Service
-1. Connect your GitHub repository to [Render](https://render.com).
-2. Create a new **Web Service**:
-   - **Environment**: `Node`
-   - **Root Directory**: Leave blank (monorepo root).
+
+You can deploy the backend to Render using either of the two standard setups:
+
+#### Configuration 1: Monorepo Root (Recommended)
+1. In Render, create a new **Web Service** connected to your repository.
+2. Configure settings:
+   - **Root Directory**: `(leave blank)`
    - **Build Command**:
      ```bash
-     npm run build:shared && npm run build:server
+     npm run build:server
      ```
    - **Start Command**:
      ```bash
      npm run start --workspace=server
      ```
    - **Health Check Path**: `/api/health`
-3. Add Environment Variables in the Render dashboard matching `server/.env.production`.
+
+#### Configuration 2: Server Subdirectory
+1. In Render, create a new **Web Service** connected to your repository.
+2. Configure settings:
+   - **Root Directory**: `server`
+   - **Build Command**:
+     ```bash
+     npm run build
+     ```
+     *(Note: `server/package.json` automatically compiles `@shopnest/shared` first via `prebuild`)*
+   - **Start Command**:
+     ```bash
+     npm start
+     ```
+   - **Health Check Path**: `/api/health`
 
 ### Option B: Docker Container
 A production multi-stage Dockerfile can be built and deployed to any container runtime:

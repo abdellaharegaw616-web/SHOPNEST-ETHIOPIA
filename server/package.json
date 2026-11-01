@@ -5,10 +5,12 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "prebuild": "npm run build --workspace=@shopnest/shared",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
+    "pretype-check": "npm run build --workspace=@shopnest/shared",
     "type-check": "tsc --noEmit",
     "seed": "tsx src/scripts/seed.ts",
     "seed:clean": "tsx src/scripts/seed.ts --clean",
