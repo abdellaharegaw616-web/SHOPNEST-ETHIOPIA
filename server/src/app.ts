@@ -74,8 +74,9 @@ export const createApp = (): Application => {
   // Logging middleware
   app.use(requestLogger);
 
-  // Mount API router
+  // Mount API router at both /api and root / for client configuration resilience
   app.use('/api', apiRouter);
+  app.use('/', apiRouter);
 
   // 404 handler
   app.use(notFoundHandler);
