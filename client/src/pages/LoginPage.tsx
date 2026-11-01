@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Lock, Mail, ArrowRight, UserCheck, ShoppingBag } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShoppingBag } from 'lucide-react';
 import { useLoginMutation } from '../store/api/authApi';
 import { useAppDispatch } from '../store/hooks';
 import { setCredentials } from '../store/slices/authSlice';
@@ -48,12 +48,6 @@ export const LoginPage: React.FC = () => {
       }
     }
   };
-
-  const handleQuickFill = (email: string, pass: string) => {
-    setEmailOrPhone(email);
-    setPassword(pass);
-  };
-
 
   return (
     <div className="max-w-md mx-auto px-4 py-12 sm:py-16">
@@ -118,32 +112,6 @@ export const LoginPage: React.FC = () => {
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
-
-        {/* Quick-fill Demo Accounts Box */}
-        <div className="border-t border-[#F3F4F6] dark:border-gray-800 pt-4 space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#6B7280] dark:text-gray-400">
-            <UserCheck className="w-3.5 h-3.5 text-[#F97316]" />
-            <span>Quick-Fill Seeded Accounts</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
-            <button
-              type="button"
-              onClick={() => handleQuickFill('customer@shopnest.et', 'Customer@123')}
-              className="p-2 rounded-xl bg-[#F9FAFB] dark:bg-gray-800/80 hover:bg-[#FFF7ED] dark:hover:bg-gray-750 border border-[#E5E7EB] dark:border-gray-700 text-left text-[#1F2937] dark:text-white transition-colors cursor-pointer"
-            >
-              <span className="font-bold block">Demo Customer</span>
-              <span className="text-[#6B7280] dark:text-gray-400">customer@shopnest.et</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickFill('abdellaj636@gmail.com', 'AdminSecure2026!')}
-              className="p-2 rounded-xl bg-[#F9FAFB] dark:bg-gray-800/80 hover:bg-[#FFF7ED] dark:hover:bg-gray-750 border border-[#E5E7EB] dark:border-gray-700 text-left text-[#1F2937] dark:text-white transition-colors cursor-pointer"
-            >
-              <span className="font-bold block">Demo Admin (Abdellah ADMIN)</span>
-              <span className="text-[#6B7280] dark:text-gray-400">abdellaj636@gmail.com</span>
-            </button>
-          </div>
-        </div>
 
         {/* Link to Register */}
         <div className="text-center text-xs text-[#6B7280] dark:text-gray-400">
